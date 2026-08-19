@@ -4,6 +4,7 @@
 # https://www.ato.gov.au/businesses-and-organisations/preparing-lodging-and-paying/business-activity-statements-bas/due-dates-for-lodging-and-paying-your-bas
 gst_rate: 0.10
 registration_threshold: 75000
+registration_threshold_nonprofit: 150000
 monthly_lodgment_threshold: 20000000
 
 # Original (unextended) quarterly BAS due dates, keyed by quarter-end month.
