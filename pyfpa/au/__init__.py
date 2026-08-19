@@ -18,6 +18,13 @@ from pyfpa.au.calendar import (
     fy_quarter_label,
     fy_year,
 )
+from pyfpa.au.drivers import (
+    DriverSeries,
+    fetch_abs_series,
+    fetch_rba_series,
+    load_snapshot,
+    save_snapshot,
+)
 from pyfpa.au.gst import BasCycle, GstAssumptions, bas_schedule, gst_weekly_flows, monthly_gst
 from pyfpa.au.payroll import PayrollAssumptions, Role, payroll_forecast
 from pyfpa.au.rates import (
@@ -29,10 +36,13 @@ from pyfpa.au.rates import (
 
 __all__ = [
     "BasCycle",
+    "DriverSeries",
     "GstAssumptions",
     "PayrollAssumptions",
     "Role",
     "bas_schedule",
+    "fetch_abs_series",
+    "fetch_rba_series",
     "format_au_date",
     "fy_half_label",
     "fy_label",
@@ -42,8 +52,10 @@ __all__ = [
     "gst_weekly_flows",
     "load_gst_bas_data",
     "load_payroll_tax_table",
+    "load_snapshot",
     "load_super_guarantee_table",
     "monthly_gst",
     "payroll_forecast",
     "rate_at",
+    "save_snapshot",
 ]
