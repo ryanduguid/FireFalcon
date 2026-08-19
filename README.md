@@ -372,6 +372,47 @@ The full proof runs in CI across Python 3.11, 3.12, and 3.13. See
 [`examples/foxfactory/README.md`](examples/foxfactory/README.md) for the
 methodology and limitations.
 
+## Australian pack (fork extension)
+
+This fork adds an Australian localisation in `pyfpa/au/`, built on the
+data-access-recipe and industry-pack paths in CONTRIBUTING:
+
+- **Calendar** - 30 June financial years, `FY2027` / `Q1 FY2027` /
+  `1H FY2027` labels, dd/mm/yyyy (`pyfpa.au.calendar`)
+- **Payroll** - super guarantee, state payroll tax (all 8
+  jurisdictions, effective-dated), workers comp, leave provisions,
+  contractors (`pyfpa.au.payroll`)
+- **GST/BAS** - net GST from GST-exclusive series, monthly and
+  quarterly settlement schedules, straight into the 13-week model
+  (`pyfpa.au.gst`)
+- **Xero** - report parser with tracking-category and GST-basis
+  detection plus the full register/map/reconcile recipe
+  (`pyfpa.io.xero_au`, [`docs/recipes/xero-au.md`](docs/recipes/xero-au.md))
+- **Economic drivers** - RBA cash rate and exchange rates, ABS CPI/WPI/
+  retail/labour series, snapshotted with provenance
+  (`pyfpa.au.drivers`, [`docs/recipes/au-drivers.md`](docs/recipes/au-drivers.md))
+
+Statutory rates are effective-dated YAML data files with official
+source URLs, verified at revenue offices (2026-08-20). Simplifications
+(grouping, QLD taper, WA diminishing threshold, surcharge tiers) are
+documented in the module docstrings. Not tax software: forecast-grade
+cash and P&L modelling only.
+
+```python
+from pyfpa.au import PayrollAssumptions, Role, payroll_forecast
+from pyfpa.au.calendar import fy_month_range
+
+frame = payroll_forecast(
+    [Role(name="Engineer", annual_salary=150000, jurisdiction="VIC")],
+    fy_month_range(2027),
+)
+```
+
+Skills: `fpa-au-payroll`, `fpa-au-gst-bas`, `fpa-au-xero`, `fpa-au-drivers`.
+
+Proposed upstream in
+[JeffBrines/openfpa#14](https://github.com/JeffBrines/openfpa/issues/14).
+
 ## Python kernel
 
 The importable package is `pyfpa`. The distribution name is `openfpa`.
