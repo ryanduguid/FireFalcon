@@ -1,0 +1,71 @@
+# State and territory payroll tax rates and annual thresholds.
+# VERIFICATION: figures below entered from general knowledge on
+# 2026-08-20 and are being cross-checked against official revenue-office
+# sources; any corrected figure will update this file with its source_url.
+# Simplifications documented in pyfpa/au/payroll.py: grouping, interstate
+# apportionment, QLD deduction taper, WA diminishing threshold, VIC
+# mental-health surcharge tiers are NOT modelled beyond rate + threshold.
+jurisdictions:
+  - jurisdiction: NSW
+    from: 2024-07-01
+    rate: 0.0545
+    annual_threshold: 1200000
+    notes: Flat rate above threshold.
+    source_url: https://www.revenue.nsw.gov.au/taxes-duties-levies-royalties/payroll-tax
+  - jurisdiction: VIC
+    from: 2025-07-01
+    rate: 0.0485
+    annual_threshold: 1000000
+    notes: >-
+      Free threshold $1m from 1 July 2025 (phases out for wages above
+      $3m, gone by $5m). Regional employer rate 1.2125% and mental
+      health and wellbeing surcharge (0.5% above $10m national wages,
+      +0.5% above $100m) not modelled.
+    source_url: https://www.sro.vic.gov.au/payroll-tax
+  - jurisdiction: QLD
+    from: 2024-07-01
+    rate: 0.0475
+    annual_threshold: 1300000
+    notes: >-
+      4.75% up to $6.5m Australian taxable wages, 4.95% above; $1.3m
+      deduction tapers away above $10.4m. Regional employer discount
+      not modelled.
+    source_url: https://qro.qld.gov.au/payroll-tax/
+  - jurisdiction: WA
+    from: 2024-07-01
+    rate: 0.055
+    annual_threshold: 1000000
+    notes: >-
+      5.5%; threshold diminishes between $1m and $7.5m wages and tiered
+      rates apply above $100m. Diminishing mechanics not modelled.
+    source_url: https://www.wa.gov.au/organisation/department-of-finance/payroll-tax
+  - jurisdiction: SA
+    from: 2024-07-01
+    rate: 0.0495
+    annual_threshold: 1500000
+    notes: >-
+      Variable rate 0-4.95% between $1.5m and $1.7m, 4.95% at $1.7m+.
+      Modelled at top rate above $1.5m threshold (conservative).
+    source_url: https://www.revenuesa.sa.gov.au/payroll-tax
+  - jurisdiction: TAS
+    from: 2024-07-01
+    rate: 0.0400
+    annual_threshold: 1250000
+    notes: >-
+      4% between $1.25m and $2m, 6.1% above $2m. Modelled at lower rate;
+      encode the $2m step in a generated skill for larger employers.
+    source_url: https://www.sro.tas.gov.au/payroll-tax
+  - jurisdiction: ACT
+    from: 2024-07-01
+    rate: 0.0685
+    annual_threshold: 2000000
+    notes: Flat rate above threshold.
+    source_url: https://www.revenue.act.gov.au/payroll-tax
+  - jurisdiction: NT
+    from: 2025-07-01
+    rate: 0.055
+    annual_threshold: 2500000
+    notes: >-
+      Threshold raised to $2.5m from 1 July 2025 with annual deduction
+      phasing out; phase-out not modelled.
+    source_url: https://nt.gov.au/employ/payroll-tax-in-the-nt
