@@ -58,6 +58,18 @@ def test_payroll_tax_lookup_selects_latest_effective():
     assert entry.effective_from <= date(2026, 8, 20)
 
 
+def test_act_fy2027_change_is_effective_dated():
+    # ACT lowered its threshold to $1.75m and moved to tiered rates
+    # from 1 July 2026; the FY2026 entry must still resolve for FY2026.
+    table = load_payroll_tax_table()
+    before = payroll_tax_at(table, "ACT", date(2026, 6, 30))
+    after = payroll_tax_at(table, "ACT", date(2026, 7, 1))
+    assert before.rate == 0.0685
+    assert before.annual_threshold == 2000000
+    assert after.rate == 0.0675
+    assert after.annual_threshold == 1750000
+
+
 def test_payroll_tax_unknown_jurisdiction_raises():
     table = load_payroll_tax_table()
     with pytest.raises(ValueError, match="unknown jurisdiction"):
