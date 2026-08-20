@@ -1,0 +1,19 @@
+metrics:
+- name: ending_cash_error
+  weight: 0.4
+  direction: lower
+- name: ebitda_error
+  weight: 0.3
+  direction: lower
+- name: revenue_error
+  weight: 0.2
+  direction: lower
+- name: gross_margin_error
+  weight: 0.1
+  direction: lower
+hard_checks:
+- source reconciliation
+- accounting invariants
+- holdout separation
+min_improvement: 0.02
+complexity_penalty: 0.01

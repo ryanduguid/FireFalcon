@@ -1,0 +1,103 @@
+# State and territory payroll tax rates and annual thresholds.
+# Every figure verified against the named official source on 2026-08-20.
+# Simplifications documented in pyfpa/au/payroll.py: grouping, interstate
+# apportionment, QLD deduction taper, WA diminishing threshold, VIC/QLD
+# surcharge tiers and ACT rate tiers are NOT modelled beyond the base
+# rate + threshold; encode entity-specific treatment in a generated skill.
+jurisdictions:
+  - jurisdiction: NSW
+    from: 2024-07-01
+    rate: 0.0545
+    annual_threshold: 1200000
+    notes: >-
+      Flat 5.45% above threshold; $1.2m / 5.45% confirmed unchanged for
+      2025-26 and 2026-27. Threshold apportioned for part-year and
+      interstate employers (not modelled).
+    source_url: https://www.revenue.nsw.gov.au/taxes-duties-levies-royalties/payroll-tax/rates-and-thresholds
+  - jurisdiction: VIC
+    from: 2025-07-01
+    rate: 0.0485
+    annual_threshold: 1000000
+    notes: >-
+      Free threshold $1m from 1 July 2025 (deduction phases out at 50%
+      between $3m and $5m Australian wages; none above $5m). Regional
+      employer rate 1.2125%. Surcharges on Victorian share above $10m
+      Australian wages: mental health and wellbeing 0.5% (+0.5% above
+      $100m) plus COVID-19 debt surcharge mirroring those tiers to
+      30 Jun 2033 (combined 1% / 2%). Surcharges not modelled.
+      Unchanged at 1 July 2026.
+    source_url: https://www.sro.vic.gov.au/about-us/rates-and-statistics/current-rates/payroll-tax-current-rates
+  - jurisdiction: QLD
+    from: 2024-07-01
+    rate: 0.0475
+    annual_threshold: 1300000
+    notes: >-
+      4.75% for employers/groups with Australian taxable wages of $6.5m
+      or less, 4.95% above; $1.3m deduction reduces $1 per $7 of wages
+      above the threshold, zero at $10.4m. Regional employer 1% rate
+      discount to 30 June 2030 and mental health levy (0.25% above $10m,
+      +0.5% above $100m) not modelled.
+    source_url: https://qro.qld.gov.au/payroll-tax/calculate/rates-thresholds/
+  - jurisdiction: WA
+    from: 2024-07-01
+    rate: 0.055
+    annual_threshold: 1000000
+    notes: >-
+      Flat 5.5% on WA taxable wages. Tax-free threshold diminishes
+      between $1m and $7.5m at 2/13 (threshold falls $2 per $13 of
+      wages over $1m; none at $7.5m+). Diminishing mechanics not
+      modelled. Tiered rates above $100m ended 30 June 2023.
+    source_url: https://www.wa.gov.au/government/multi-step-guides/payroll-tax-employer-guide/calculation-payroll-tax-employer-guide
+  - jurisdiction: SA
+    from: 2024-07-01
+    rate: 0.0495
+    annual_threshold: 1500000
+    notes: >-
+      Since 1 Jan 2019, confirmed unchanged through 2026-27: nil below
+      $1.5m; variable rate 0-4.95% between $1.5m and $1.7m Australia-wide
+      payroll; 4.95% at $1.7m+. Maximum annual deduction $600,000.
+      Modelled at top rate above $1.5m threshold (conservative in the
+      $1.5m-$1.7m band).
+    source_url: https://www.revenuesa.sa.gov.au/payrolltax/rates-and-thresholds
+  - jurisdiction: TAS
+    from: 2024-07-01
+    rate: 0.061
+    annual_threshold: 1250000
+    notes: >-
+      Two-rate structure, unchanged since 1 July 2018 and confirmed for
+      2025-26 and 2026-27: 0% to $1.25m, 4.0% from $1.25m to $2m, 6.1%
+      above $2m. Modelled at the top rate above the threshold
+      (conservative; overstates tax for employers in the $1.25m-$2m
+      band - encode the 4% band in a generated skill when it matters).
+    source_url: https://www.sro.tas.gov.au/payroll-tax/rates-thresholds
+  - jurisdiction: ACT
+    from: 2024-07-01
+    rate: 0.0685
+    annual_threshold: 2000000
+    notes: >-
+      FY2025-26: flat 6.85% above $2m threshold. Surcharges for large
+      groups (0.5% above $50m Australia-wide wages, up to 1% / 8.75%
+      structures during 2025-26) not modelled.
+    source_url: https://www.revenue.act.gov.au/business-taxes-and-levies/payroll-tax/about-payroll-tax
+  - jurisdiction: ACT
+    from: 2026-07-01
+    rate: 0.0675
+    annual_threshold: 1750000
+    notes: >-
+      FY2026-27: threshold lowered to $1.75m; tiered general rates by
+      Australia-wide group wages replace the surcharge model - 6.75%
+      ($1.75m-$20m), 6.85% (to $50m), 7.35% (to $100m), 7.85% (to
+      $150m), 8.75% above. Modelled at the base 6.75% tier; encode
+      higher tiers in a generated skill for groups above $20m.
+    source_url: https://www.revenue.act.gov.au/business-taxes-and-levies/payroll-tax/about-payroll-tax
+  - jurisdiction: NT
+    from: 2025-07-01
+    rate: 0.055
+    annual_threshold: 2500000
+    notes: >-
+      From 1 July 2025: threshold and maximum annual deduction raised
+      from $1.5m to $2.5m; apprentice and trainee wages exempt. From
+      1 July 2026 a 6.5% rate applies to employers/groups with
+      Australia-wide wages of $100m+ (base 5.5% and threshold
+      unchanged; large-group tier not modelled).
+    source_url: https://treasury.nt.gov.au/dtf/territory-revenue-office/payroll-tax/payroll-tax-rates-and-thresholds

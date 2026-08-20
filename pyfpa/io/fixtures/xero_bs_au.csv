@@ -1,0 +1,12 @@
+Code,Account,Amount
+090,Business Bank Account,"85,420.00"
+620,Accounts Receivable,"41,300.00"
+630,Inventory,"26,000.00"
+710,Office Equipment,"48,000.00"
+711,Less Accumulated Depreciation,"(12,000.00)"
+800,Accounts Payable,"(29,800.00)"
+820,GST,"(2,800.00)"
+823,GST Clearing,"(1,050.00)"
+826,PAYG Withholdings Payable,"(3,900.00)"
+860,Business Loan,"(60,000.00)"
+900,Retained Earnings,"(93,170.00)"
