@@ -16,6 +16,7 @@ from pyfpa.au.calendar import (
     fy_label,
     fy_month_range,
     fy_quarter_label,
+    fy_summary,
     fy_year,
 )
 from pyfpa.au.drivers import (
@@ -48,6 +49,7 @@ __all__ = [
     "fy_label",
     "fy_month_range",
     "fy_quarter_label",
+    "fy_summary",
     "fy_year",
     "gst_weekly_flows",
     "load_gst_bas_data",

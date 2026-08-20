@@ -1,0 +1,50 @@
+schema_version: 1
+sources:
+- source_id: arb-income-statement
+  kind: public_filing
+  location: data/income_statement.csv
+  entity: ARB Corporation Limited
+  currency: AUD
+  periods:
+  - FY2024
+  - FY2025
+  extraction_method: Transcribed from the FY2025 Appendix 4E consolidated income
+    statement and KPI table. Gross profit constructed as sales minus materials.
+  refreshed_at: ''
+  notes: Filing URL and $'000 originals are in data/SOURCES.md.
+- source_id: arb-balance-sheet
+  kind: public_filing
+  location: data/balance_sheet.csv
+  entity: ARB Corporation Limited
+  currency: AUD
+  periods:
+  - FY2024
+  - FY2025
+  extraction_method: Transcribed from the FY2025 Appendix 4E statement of financial
+    position and notes 7, 8 and 12.
+  refreshed_at: ''
+  notes: Trade receivables used as AR, not the broader receivables total.
+- source_id: arb-cash-flow
+  kind: public_filing
+  location: data/cash_flow.csv
+  entity: ARB Corporation Limited
+  currency: AUD
+  periods:
+  - FY2024
+  - FY2025
+  extraction_method: Transcribed from the FY2025 Appendix 4E cash-flow statement
+    and P&L depreciation line.
+  refreshed_at: ''
+  notes: Capex is payments for PPE only.
+- source_id: arb-segments
+  kind: public_filing
+  location: data/segments.csv
+  entity: ARB Corporation Limited
+  currency: AUD
+  periods:
+  - FY2024
+  - FY2025
+  extraction_method: Transcribed from the operating and financial review sales
+    channel table.
+  refreshed_at: ''
+  notes: Sales only. No channel EBITDA in the filing.

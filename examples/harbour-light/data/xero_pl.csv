@@ -1,0 +1,14 @@
+Code,Account,Amount
+200,Sales - Domestic,99000.00
+201,Sales - GST Free,12000.00
+400,Cost of Goods Sold,-50000.00
+610,Advertising,-4500.00
+613,Consulting & Accounting,-3200.00
+620,Office Expenses,-1800.00
+627,Rent,-6500.00
+633,Repairs & Maintenance,-900.00
+640,Superannuation,-4992.00
+642,Payroll Tax,-1300.00
+644,Wages and Salaries,-41600.00
+646,Workers Compensation,-832.00
+800,Interest Income,120.00
