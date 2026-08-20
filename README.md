@@ -1,6 +1,12 @@
-# openfpa
+# FireFalcon
 
-[![CI](https://github.com/JeffBrines/openfpa/actions/workflows/ci.yml/badge.svg)](https://github.com/JeffBrines/openfpa/actions/workflows/ci.yml)
+[![CI](https://github.com/ryanduguid/FireFalcon/actions/workflows/ci.yml/badge.svg)](https://github.com/ryanduguid/FireFalcon/actions/workflows/ci.yml)
+
+**FireFalcon is an Australian FP&A pack** on a fork of
+[openfpa](https://github.com/JeffBrines/openfpa). The kernel, skills, and MIT
+license stay with Guiderail's openfpa. This repo adds 30 June years, Xero
+Australia, GST/BAS cash timing, AU payroll on-costs, and two worked examples:
+Harbour Light (synthetic) and ARB Corporation (ASX: ARB).
 
 **openfpa is an agent-native FP&A workbench.** It gives an AI coding agent a
 tested finance kernel, an operating contract, durable company memory, and a
@@ -410,8 +416,17 @@ frame = payroll_forecast(
 
 Skills: `fpa-au-payroll`, `fpa-au-gst-bas`, `fpa-au-xero`, `fpa-au-drivers`.
 
+Worked examples on this fork:
+
+- [`examples/harbour-light/`](examples/harbour-light/) — synthetic VIC
+  wholesaler: Xero mapping, statutory payroll, quarterly BAS into 13-week cash,
+  verified Excel.
+- [`examples/arb/`](examples/arb/) — ARB Corporation (ASX: ARB) from the FY2025
+  Appendix 4E. Annual public proof, not a GST model.
+
 Proposed upstream in
 [JeffBrines/openfpa#14](https://github.com/JeffBrines/openfpa/issues/14).
+This fork is not a claim to be upstream.
 
 ## Python kernel
 
@@ -488,6 +503,9 @@ underlying workflow is not intended to be Claude-only.
 | Generated connector contracts and fixture validation | Built |
 | Synthetic Ridgeline example | Built |
 | Public-data Fox Factory example | Built |
+| Australian pack (`pyfpa.au`) | Built (this fork) |
+| Harbour Light synthetic AU example | Built |
+| ARB Corporation public AU example | Built |
 | Fixture-backed adapter examples | Built |
 | Live company-specific connectors | Generated per company |
 | Cross-company portfolio learning | Experimental |
@@ -527,4 +545,5 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development workflow.
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE). Built and maintained by [Guiderail](https://www.guiderail.io).
+MIT. See [`LICENSE`](LICENSE). The `pyfpa` kernel is built and maintained by
+[Guiderail](https://www.guiderail.io). FireFalcon is a fork, not a replacement.

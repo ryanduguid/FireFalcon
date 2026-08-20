@@ -1,0 +1,92 @@
+schema_version: 1
+mappings:
+- source_id: arb-income-statement
+  source_value: net_sales
+  target: income_statement.net_sales
+  status: mapped
+  rationale: Appendix 4E sales revenue.
+- source_id: arb-income-statement
+  source_value: cost_of_sales
+  target: income_statement.cost_of_sales
+  status: mapped
+  rationale: Materials and consumables used.
+- source_id: arb-income-statement
+  source_value: gross_profit
+  target: income_statement.gross_profit
+  status: mapped
+  rationale: Constructed as sales minus materials. Not a printed line.
+- source_id: arb-income-statement
+  source_value: ebit
+  target: income_statement.ebit
+  status: mapped
+  rationale: KPI table earnings before interest and tax.
+- source_id: arb-income-statement
+  source_value: interest_expense
+  target: income_statement.interest_expense
+  status: mapped
+  rationale: Finance expense, mainly leases. Not modelled as a term loan.
+- source_id: arb-income-statement
+  source_value: profit_before_tax
+  target: income_statement.profit_before_tax
+  status: mapped
+  rationale: Printed PBT. Bridged, not forced through the engine.
+- source_id: arb-income-statement
+  source_value: income_tax
+  target: income_statement.income_tax
+  status: mapped
+  rationale: Printed tax expense. Phase A uses tax_rate 0.
+- source_id: arb-income-statement
+  source_value: net_income
+  target: income_statement.net_income
+  status: mapped
+  rationale: Printed NPAT. Bridged, not reconciled in Phase A.
+- source_id: arb-balance-sheet
+  source_value: cash
+  target: balance_sheet.cash
+  status: mapped
+  rationale: Year-end cash.
+- source_id: arb-balance-sheet
+  source_value: accounts_receivable
+  target: balance_sheet.accounts_receivable
+  status: mapped
+  rationale: Note 7 trade receivables.
+- source_id: arb-balance-sheet
+  source_value: inventory
+  target: balance_sheet.inventory
+  status: mapped
+  rationale: Note 8 inventories.
+- source_id: arb-balance-sheet
+  source_value: accounts_payable
+  target: balance_sheet.accounts_payable
+  status: mapped
+  rationale: Note 12 current payables.
+- source_id: arb-cash-flow
+  source_value: operating_cash_flow
+  target: cash_flow.operating_cash_flow
+  status: mapped
+  rationale: Net cash from operating activities.
+- source_id: arb-cash-flow
+  source_value: capex
+  target: cash_flow.capex
+  status: mapped
+  rationale: Payments for property, plant and equipment.
+- source_id: arb-cash-flow
+  source_value: depreciation_amortization
+  target: cash_flow.depreciation_amortization
+  status: mapped
+  rationale: P&L depreciation and amortisation.
+- source_id: arb-segments
+  source_value: Australian Aftermarket.net_sales
+  target: segments.australian_aftermarket.net_sales
+  status: mapped
+  rationale: Operating review sales channel table.
+- source_id: arb-segments
+  source_value: Exports.net_sales
+  target: segments.exports.net_sales
+  status: mapped
+  rationale: Operating review sales channel table.
+- source_id: arb-segments
+  source_value: Original Equipment.net_sales
+  target: segments.oem.net_sales
+  status: mapped
+  rationale: Operating review sales channel table.

@@ -1,13 +1,13 @@
 import pandas as pd
 import pytest
 
+from pyfpa.au import fy_summary
 from pyfpa.au.calendar import (
     format_au_date,
     fy_half_label,
     fy_label,
     fy_month_range,
     fy_quarter_label,
-    fy_summary,
     fy_year,
 )
 

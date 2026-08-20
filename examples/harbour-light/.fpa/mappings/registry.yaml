@@ -1,0 +1,69 @@
+schema_version: 1
+mappings:
+- source_id: xero-pl
+  source_value: Sales - Domestic
+  target: revenue.domestic
+  status: mapped
+  rationale: GST-taxable trading sales, annualised.
+- source_id: xero-pl
+  source_value: Sales - GST Free
+  target: revenue.gst_free
+  status: mapped
+  rationale: No output GST. Reduces taxable_sales_pct.
+- source_id: xero-pl
+  source_value: Cost of Goods Sold
+  target: cogs.product
+  status: mapped
+  rationale: Channel COGS from the tracking file; this row is the entity total.
+- source_id: xero-pl
+  source_value: Advertising
+  target: opex.advertising
+  status: mapped
+  rationale: Creditable overhead in the GST purchase series.
+- source_id: xero-pl
+  source_value: Consulting & Accounting
+  target: opex.consulting
+  status: mapped
+  rationale: Creditable overhead in the GST purchase series.
+- source_id: xero-pl
+  source_value: Office Expenses
+  target: opex.office
+  status: mapped
+  rationale: Creditable overhead in the GST purchase series.
+- source_id: xero-pl
+  source_value: Rent
+  target: opex.rent
+  status: mapped
+  rationale: Creditable overhead in the GST purchase series.
+- source_id: xero-pl
+  source_value: Repairs & Maintenance
+  target: opex.repairs
+  status: mapped
+  rationale: Creditable overhead in the GST purchase series.
+- source_id: xero-pl
+  source_value: Wages and Salaries
+  target: opex.wages
+  status: mapped
+  rationale: Reconcile against payroll_forecast gross_wages. Engine opex uses the
+    statutory payroll total_cost line instead of this amount.
+- source_id: xero-pl
+  source_value: Superannuation
+  target: opex.super
+  status: mapped
+  rationale: Reconcile against payroll_forecast super_guarantee.
+- source_id: xero-pl
+  source_value: Payroll Tax
+  target: opex.payroll_tax
+  status: mapped
+  rationale: Fixture amount is not the statutory source. VIC wages are under the
+    $1m threshold so payroll_forecast pays nil.
+- source_id: xero-pl
+  source_value: Workers Compensation
+  target: opex.workers_comp
+  status: mapped
+  rationale: Reconcile against payroll_forecast workers_comp at 2 percent.
+- source_id: xero-pl
+  source_value: Interest Income
+  target: revenue.other
+  status: ignored
+  rationale: Not trading revenue and not in the GST taxable share.
