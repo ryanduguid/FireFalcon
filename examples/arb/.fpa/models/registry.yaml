@@ -1,0 +1,15 @@
+schema_version: 1
+champion:
+  model_id: arb-flat-fy2024-run-rate
+  created: '2026-08-20'
+  artifact: arb_model.py
+  source_epoch: null
+  description: Flat FY2024 operating run rate used as the FY2025 holdout champion.
+challengers:
+- model_id: arb-export-led-150bps
+  created: '2026-08-20'
+  artifact: arb_model.py::historical_candidate
+  source_epoch: arb-fy2025-002-export-led-margin-pressure
+  description: Export-led volume with 150bps EBITDA margin compression.
+retired: []
+promotions: []
