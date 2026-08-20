@@ -1,0 +1,10 @@
+schema_version: 1
+champion:
+  model_id: harbour-fy2027-run-rate
+  created: '2026-08-20'
+  artifact: harbour_model.py
+  source_epoch: null
+  description: FY2027 Xero run-rate with statutory VIC payroll and quarterly BAS.
+challengers: []
+retired: []
+promotions: []

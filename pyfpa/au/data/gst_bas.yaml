@@ -1,0 +1,25 @@
+# GST and BAS lodgment timing rules.
+# Sources: ATO (GST rate; BAS due dates).
+# https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst
+# https://www.ato.gov.au/businesses-and-organisations/preparing-lodging-and-paying/business-activity-statements-bas/due-dates-for-lodging-and-paying-your-bas
+gst_rate: 0.10
+registration_threshold: 75000
+registration_threshold_nonprofit: 150000
+monthly_lodgment_threshold: 20000000
+
+# Original (unextended) quarterly BAS due dates, keyed by quarter-end month.
+# Q1 Jul-Sep -> 28 Oct; Q2 Oct-Dec -> 28 Feb; Q3 Jan-Mar -> 28 Apr; Q4 Apr-Jun -> 28 Jul.
+quarterly_due:
+  "09": { month: 10, day: 28 }
+  "12": { month: 2, day: 28 }
+  "03": { month: 4, day: 28 }
+  "06": { month: 7, day: 28 }
+
+# Monthly BAS: due the 21st of the following month.
+monthly_due_day: 21
+
+# Tax/BAS agent lodgment program extensions exist for quarterly cycles
+# (typically +4 weeks; the December quarter gets none because its 28 Feb
+# due date already includes the summer extension). Not modelled: forecast
+# conservatively on original dates, or override due dates in a generated
+# company skill.
