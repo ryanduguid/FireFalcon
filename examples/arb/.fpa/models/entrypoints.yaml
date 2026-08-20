@@ -1,0 +1,20 @@
+schema_version: 1
+entrypoints:
+- name: arb-pipeline
+  kind: forecast
+  description: Run ARB actual-driver reproduction, historical holdout, forward forecast,
+    and THB/tariff sensitivity.
+  command:
+  - python3
+  - run_arb.py
+  working_directory: .
+  inputs:
+  - data/income_statement.csv
+  - data/balance_sheet.csv
+  - data/cash_flow.csv
+  - data/segments.csv
+  outputs:
+  - output/reconciliation.md
+  - output/historical-holdout.md
+  - output/forecast-briefing.md
+  - output/sensitivity.md

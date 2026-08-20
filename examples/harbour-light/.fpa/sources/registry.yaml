@@ -1,0 +1,35 @@
+schema_version: 1
+sources:
+- source_id: xero-pl
+  kind: accounting_system
+  location: data/xero_pl.csv
+  entity: Harbour Light Pty Ltd
+  currency: AUD
+  periods:
+  - 2026-07
+  extraction_method: Aggregated Xero Australia GST-exclusive P&L CSV. Tracking splits
+    live in data/xero_pl_tracking.csv; this file is one row per account so
+    reconcile-source can run.
+  refreshed_at: ''
+  notes: Kernel fixture copy. Not a client export.
+- source_id: xero-bs
+  kind: accounting_system
+  location: data/xero_bs.csv
+  entity: Harbour Light Pty Ltd
+  currency: AUD
+  periods:
+  - 2026-07
+  extraction_method: Xero Australia GST-exclusive balance sheet CSV fixture.
+  refreshed_at: ''
+  notes: Opening cash, AR, inventory, and AP for the FY2027 model.
+- source_id: xero-pl-tracking
+  kind: accounting_system
+  location: data/xero_pl_tracking.csv
+  entity: Harbour Light Pty Ltd
+  currency: AUD
+  periods:
+  - 2026-07
+  extraction_method: Xero P&L with Tracking Option (North/South). Not used for
+    reconcile-source because Sales - Domestic repeats.
+  refreshed_at: ''
+  notes: Channel split source for harbour_model.channels_from_xero.

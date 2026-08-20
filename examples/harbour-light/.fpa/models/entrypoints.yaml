@@ -1,0 +1,16 @@
+schema_version: 1
+entrypoints:
+- name: harbour-light-pipeline
+  kind: forecast
+  description: Run the Harbour Light Xero, payroll, GST, and verified Excel pipeline.
+  command:
+  - python3
+  - run_harbour.py
+  working_directory: .
+  inputs:
+  - data/xero_pl_tracking.csv
+  - data/xero_pl.csv
+  - data/xero_bs.csv
+  outputs:
+  - output/briefing.md
+  - output/model.xlsx

@@ -1,0 +1,16 @@
+Code,Account,Amount,Tracking Option
+200,Sales - Domestic,"58,000.00",North
+200,Sales - Domestic,"41,000.00",South
+201,Sales - GST Free,"12,000.00",North
+400,Cost of Goods Sold,"(31,000.00)",North
+400,Cost of Goods Sold,"(19,000.00)",South
+610,Advertising,"(4,500.00)",
+613,Consulting & Accounting,"(3,200.00)",
+620,Office Expenses,"(1,800.00)",
+627,Rent,"(6,500.00)",
+633,Repairs & Maintenance,"(900.00)",
+640,Superannuation,"(4,992.00)",
+642,Payroll Tax,"(1,300.00)",
+644,Wages and Salaries,"(41,600.00)",
+646,Workers Compensation,"(832.00)",
+800,Interest Income,"120.00",

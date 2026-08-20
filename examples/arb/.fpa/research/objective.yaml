@@ -1,0 +1,16 @@
+metrics:
+- name: revenue_error
+  weight: 0.4
+  direction: lower
+- name: gross_profit_error
+  weight: 0.3
+  direction: lower
+- name: ebitda_error
+  weight: 0.3
+  direction: lower
+hard_checks:
+- holdout separation
+- channel rollup
+min_improvement: 0.02
+complexity_penalty: 0.01
+max_metric_regression: 0.5
