@@ -32,9 +32,10 @@ dev = ["pytest>=8.0", "build>=1.2", "formulas>=1.2"]
 openfpa = "pyfpa.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/JeffBrines/openfpa"
-Repository = "https://github.com/JeffBrines/openfpa"
-Issues = "https://github.com/JeffBrines/openfpa/issues"
+Homepage = "https://github.com/ryanduguid/FireFalcon"
+Repository = "https://github.com/ryanduguid/FireFalcon"
+Issues = "https://github.com/ryanduguid/FireFalcon/issues"
+Upstream = "https://github.com/JeffBrines/openfpa"
 
 [build-system]
 requires = ["setuptools>=77"]
