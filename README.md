@@ -1,4 +1,4 @@
-The FP&A toolbelt for AI coding agents. Claude Code or Codex does the thinking; openfpa gives it a tested finance kernel, durable company memory, and a Karpathy inspired research loop that improves forecasts against your actuals. By Guiderail and Jeff Brines.
+Australian FP&A pack on [openfpa](https://github.com/JeffBrines/openfpa) (Jeff Brines / Guiderail): 30 June years, Xero AU, GST/BAS. Not the upstream product.
 
 [![CI](https://github.com/ryanduguid/FireFalcon/actions/workflows/ci.yml/badge.svg)](https://github.com/ryanduguid/FireFalcon/actions/workflows/ci.yml)
 
