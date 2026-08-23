@@ -6,3 +6,11 @@ docs/demo/*.xlsx
 examples/*/output/*.xlsx
 dist/
 build/
+
+# Credentials must never be committed.
+.env
+.env.*
+!.env.example
+*.token
+*.tokens
+*.pem
