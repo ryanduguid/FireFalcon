@@ -6,6 +6,15 @@ import pandas as pd
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
+def _reject_reserved_name(v: str) -> str:
+    name = v.strip()
+    if not name:
+        raise ValueError("name must not be empty")
+    if name.lower() == "total":
+        raise ValueError("'total' is a reserved column name")
+    return name
+
+
 class Channel(BaseModel):
     name: str
     annual_revenue: float = Field(ge=0)
@@ -16,12 +25,7 @@ class Channel(BaseModel):
     @field_validator("name")
     @classmethod
     def _name_not_reserved(cls, v: str) -> str:
-        name = v.strip()
-        if not name:
-            raise ValueError("name must not be empty")
-        if name.lower() == "total":
-            raise ValueError("'total' is a reserved column name")
-        return name
+        return _reject_reserved_name(v)
 
     @field_validator("seasonality")
     @classmethod
@@ -40,12 +44,7 @@ class OpexLine(BaseModel):
     @field_validator("name")
     @classmethod
     def _name_not_reserved(cls, v: str) -> str:
-        name = v.strip()
-        if not name:
-            raise ValueError("name must not be empty")
-        if name.lower() == "total":
-            raise ValueError("'total' is a reserved column name")
-        return name
+        return _reject_reserved_name(v)
 
 
 class DebtInstrument(BaseModel):
