@@ -20,8 +20,6 @@ Forecast-grade simplifications, stated openly:
 
 from __future__ import annotations
 
-from datetime import date
-
 import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
@@ -165,8 +163,3 @@ def payroll_forecast(
         frame.loc[period, "total_cash"] = cash
 
     return frame
-
-
-def sg_rate_on(when: date | str | pd.Period) -> float:
-    """Super guarantee rate applying on `when` (convenience wrapper)."""
-    return rate_at(load_super_guarantee_table(), when)
