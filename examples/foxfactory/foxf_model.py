@@ -425,11 +425,6 @@ def historical_research_epochs() -> list[ResearchEpoch]:
     return [broad, refined]
 
 
-def historical_holdout_epoch() -> ResearchEpoch:
-    """Return the strongest FY2025 holdout challenger."""
-    return historical_research_epochs()[-1]
-
-
 # --------------------------------------------------------------------------- #
 # Phase C - forecast (FY2026 + FY2027), segment-level
 # --------------------------------------------------------------------------- #
