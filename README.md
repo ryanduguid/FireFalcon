@@ -320,8 +320,8 @@ with `entrypoint-register --kind connector`.
 Clone the repository and install it into a Python 3.11 or newer environment:
 
 ```bash
-git clone https://github.com/JeffBrines/openfpa
-cd openfpa
+git clone https://github.com/ryanduguid/FireFalcon
+cd FireFalcon
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
@@ -541,7 +541,8 @@ recipes, industry-specific skills, reconciliation checks, research objectives,
 and additional public-company proofs. Never commit real client data or
 credentials.
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development workflow.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development workflow and
+[`SECURITY.md`](SECURITY.md) for how to report a vulnerability.
 
 ## License
 
