@@ -418,10 +418,10 @@ Skills: `fpa-au-payroll`, `fpa-au-gst-bas`, `fpa-au-xero`, `fpa-au-drivers`.
 
 Worked examples on this fork:
 
-- [`examples/harbour-light/`](examples/harbour-light/) — synthetic VIC
+- [`examples/harbour-light/`](examples/harbour-light/) - synthetic VIC
   wholesaler: Xero mapping, statutory payroll, quarterly BAS into 13-week cash,
   verified Excel.
-- [`examples/arb/`](examples/arb/) — ARB Corporation (ASX: ARB) from the FY2025
+- [`examples/arb/`](examples/arb/) - ARB Corporation (ASX: ARB) from the FY2025
   Appendix 4E. Annual public proof, not a GST model.
 
 Proposed upstream in
