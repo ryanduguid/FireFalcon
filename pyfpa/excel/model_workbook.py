@@ -6,11 +6,13 @@ Formula vocabulary: arithmetic, ^, SUM, MIN, MAX, IF only.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
 from pyfpa.config.schemas import EntityConfig
 from pyfpa.excel.toolkit import (
@@ -138,52 +140,75 @@ def _build_assumptions(
 
 _MODEL_START_COL = 2   # column B = first month
 
+# A row template: given 1-based month number and the column letter, return
+# the Excel formula for that cell.
+_RowTemplate = Callable[[int, str], str]
+
+
+class _RowAlloc:
+    """Sequential Model-sheet row allocation plus formula-row emitters.
+
+    Row 1 is the header row; allocation starts at row 2. Row numbers flow
+    into formula strings across sections, so call order between sections is
+    load-bearing and must not change.
+    """
+
+    def __init__(self, ws: Worksheet, n_cols: int, default_fmt: str) -> None:
+        self._ws = ws
+        self._n = n_cols
+        self._fmt = default_fmt
+        self._next = 2
+
+    def alloc(self) -> int:
+        r = self._next
+        self._next += 1
+        return r
+
+    def emit_fn(
+        self, label: str, template: _RowTemplate, fmt: str | None = None
+    ) -> int:
+        r = self.alloc()
+        fill_formula_row(self._ws, row=r, label=label, start_col=_MODEL_START_COL,
+                         n_cols=self._n, template=template,
+                         number_format=fmt if fmt is not None else self._fmt)
+        return r
+
+    def emit_cells(
+        self, label: str, formulas: list[str], fmt: str | None = None
+    ) -> int:
+        """Write per-month cells directly (used when formula depends on own row)."""
+        r = self.alloc()
+        self._ws.cell(row=r, column=1, value=label)
+        eff_fmt = fmt if fmt is not None else self._fmt
+        for m_idx, formula in enumerate(formulas):
+            self._ws.cell(row=r, column=_MODEL_START_COL + m_idx,
+                          value=formula).number_format = eff_fmt
+        return r
+
+    def write_cells(self, row: int, formulas: list[str], fmt: str) -> None:
+        """Fill an already-allocated row (label written separately)."""
+        for m_idx, formula in enumerate(formulas):
+            self._ws.cell(row=row, column=_MODEL_START_COL + m_idx,
+                          value=formula).number_format = fmt
+
 
 def _season_cell(sr: _SeasonRef, cal_month_0: int) -> str:
     """Absolute cell reference for a 0-based calendar month's seasonality weight."""
     return f"Assumptions!${sr.col_letters[cal_month_0]}${sr.row}"
 
 
-def _build_model(
-    wb: Workbook,
-    cfg: EntityConfig,
-    channel_refs: list[_ChannelRef],
-    opex_names: list[str],
-    debt_refs: list[_DebtRef],
-) -> None:
-    ws = wb["Model"]
-    idx = month_index(cfg.start_month, cfg.horizon_months)
-    n = cfg.horizon_months
-    sc = _MODEL_START_COL
-    mfmt = money_format()
-
-    row_counter = [2]   # start at row 2; row 1 is headers
-
-    def alloc() -> int:
-        r = row_counter[0]
-        row_counter[0] += 1
-        return r
-
-    def emit_fn(label: str, template, fmt: str = mfmt) -> int:
-        r = alloc()
-        fill_formula_row(ws, row=r, label=label, start_col=sc, n_cols=n,
-                         template=template, number_format=fmt)
-        return r
-
-    def emit_cells(label: str, formulas: list[str], fmt: str = mfmt) -> int:
-        """Write per-month cells directly (used when formula depends on own row)."""
-        r = alloc()
-        ws.cell(row=r, column=1, value=label)
-        for m_idx, formula in enumerate(formulas):
-            ws.cell(row=r, column=sc + m_idx, value=formula).number_format = fmt
-        return r
-
-    # Header row 1: month labels
+def _emit_header(ws: Worksheet, idx: list) -> None:
+    """Header row 1: month labels."""
     ws.cell(row=1, column=1, value="")
     for m_idx, period in enumerate(idx):
-        ws.cell(row=1, column=sc + m_idx, value=str(period))
+        ws.cell(row=1, column=_MODEL_START_COL + m_idx, value=str(period))
 
-    # -- Per-channel revenue --
+
+def _build_revenue_block(
+    ws: Worksheet, cfg: EntityConfig, channel_refs: list[_ChannelRef],
+    idx: list, alloc: _RowAlloc,
+) -> tuple[list[int], int, int]:
+    """Per-channel revenue rows plus revenue and cogs totals."""
     # Bake (weight_cell_ref, year_exponent) per month per channel
     ch_rev_rows: list[int] = []
     for i, (ch, cref) in enumerate(zip(cfg.channels, channel_refs)):
@@ -202,193 +227,270 @@ def _build_model(
                 )
             return t
 
-        ch_rev_rows.append(emit_fn(f"revenue_ch{i + 1}", make_rev()))
+        ch_rev_rows.append(alloc.emit_fn(f"revenue_ch{i + 1}", make_rev()))
 
     # -- Revenue total --
-    r_rev = emit_fn(
+    r_rev = alloc.emit_fn(
         "revenue",
         lambda m, col: f"=SUM({col}{ch_rev_rows[0]}:{col}{ch_rev_rows[-1]})",
     )
 
     # -- COGS total (explicit product sum across channels) --
-    r_cogs = emit_fn(
+    r_cogs = alloc.emit_fn(
         "cogs",
         lambda m, col: "=" + "+".join(
             f"{col}{ch_rev_rows[i]}*{cref.name_cogs}"
             for i, cref in enumerate(channel_refs)
         ),
     )
+    return ch_rev_rows, r_rev, r_cogs
 
-    # -- Gross profit --
-    r_gp = emit_fn("gross_profit", lambda m, col: f"={col}{r_rev}-{col}{r_cogs}")
 
-    # -- Opex per line then total --
+def _build_opex_block(
+    cfg: EntityConfig, opex_names: list[str], r_rev: int, alloc: _RowAlloc,
+) -> int:
+    """Opex per line then the opex total row."""
     opex_rows: list[int] = []
     for j, (line, nm) in enumerate(zip(cfg.opex, opex_names)):
         if line.kind == "fixed":
-            opex_rows.append(emit_fn(f"opex_{j + 1}", lambda m, col, nm_=nm: f"={nm_}"))
+            opex_rows.append(alloc.emit_fn(
+                f"opex_{j + 1}", lambda m, col, nm_=nm: f"={nm_}"))
         else:
-            opex_rows.append(emit_fn(
+            opex_rows.append(alloc.emit_fn(
                 f"opex_{j + 1}",
                 lambda m, col, nm_=nm, r=r_rev: f"={col}{r}*{nm_}",
             ))
 
     if opex_rows:
-        r_opex = emit_fn(
+        return alloc.emit_fn(
             "opex",
             lambda m, col: f"=SUM({col}{opex_rows[0]}:{col}{opex_rows[-1]})",
         )
-    else:
-        r_opex = emit_fn("opex", lambda m, col: "=0")
+    return alloc.emit_fn("opex", lambda m, col: "=0")
 
-    # -- EBITDA and D&A --
-    r_ebitda = emit_fn("ebitda", lambda m, col: f"={col}{r_gp}-{col}{r_opex}")
-    r_da = emit_fn("da", lambda m, col: "=da_monthly")
 
-    # -- Per-instrument debt rows (balance, interest, principal) --
+def _debt_balance_formulas(inst, dref: _DebtRef, bal_row: int, n: int) -> list[str]:
+    """Balance (AFTER payment); references its own prior cell."""
+    formulas: list[str] = []
+    for m_idx in range(n):
+        if inst.kind == "term_loan":
+            if m_idx == 0:
+                formulas.append(
+                    f"={dref.name_open}-MIN({dref.name_prin},{dref.name_open})")
+            else:
+                pc = get_column_letter(_MODEL_START_COL + m_idx - 1)
+                formulas.append(
+                    f"={pc}{bal_row}-MIN({dref.name_prin},{pc}{bal_row})")
+        else:
+            if m_idx == 0:
+                formulas.append(f"={dref.name_open}")
+            else:
+                pc = get_column_letter(_MODEL_START_COL + m_idx - 1)
+                formulas.append(f"={pc}{bal_row}")
+    return formulas
+
+
+def _debt_interest_formulas(dref: _DebtRef, bal_row: int, n: int) -> list[str]:
+    """Interest on PRE-payment balance (= prior balance or opening)."""
+    return [
+        f"={dref.name_open}*{dref.name_rate}/12" if m_idx == 0
+        else (f"={get_column_letter(_MODEL_START_COL + m_idx - 1)}{bal_row}"
+              f"*{dref.name_rate}/12")
+        for m_idx in range(n)
+    ]
+
+
+def _debt_principal_formulas(inst, dref: _DebtRef, bal_row: int, n: int) -> list[str]:
+    formulas: list[str] = []
+    for m_idx in range(n):
+        if inst.kind != "term_loan":
+            formulas.append("=0")
+        elif m_idx == 0:
+            formulas.append(f"=MIN({dref.name_prin},{dref.name_open})")
+        else:
+            pc = get_column_letter(_MODEL_START_COL + m_idx - 1)
+            formulas.append(f"=MIN({dref.name_prin},{pc}{bal_row})")
+    return formulas
+
+
+def _build_debt_block(
+    ws: Worksheet, cfg: EntityConfig, debt_refs: list[_DebtRef],
+    alloc: _RowAlloc, mfmt: str,
+) -> tuple[list[int], list[int]]:
+    """Per-instrument balance, interest and principal rows."""
     debt_int_rows: list[int] = []
     debt_prin_rows: list[int] = []
 
     for k, (inst, dref) in enumerate(zip(cfg.debt, debt_refs)):
-        # Balance (AFTER payment) -- references its own row, so allocate then fill directly
-        bal_row = alloc()
-        ws.cell(row=bal_row, column=1, value=f"debt_balance_{k + 1}")
-        for m_idx in range(n):
-            if inst.kind == "term_loan":
-                if m_idx == 0:
-                    formula = f"={dref.name_open}-MIN({dref.name_prin},{dref.name_open})"
-                else:
-                    pc = get_column_letter(sc + m_idx - 1)
-                    formula = f"={pc}{bal_row}-MIN({dref.name_prin},{pc}{bal_row})"
-            else:
-                if m_idx == 0:
-                    formula = f"={dref.name_open}"
-                else:
-                    pc = get_column_letter(sc + m_idx - 1)
-                    formula = f"={pc}{bal_row}"
-            ws.cell(row=bal_row, column=sc + m_idx, value=formula).number_format = mfmt
+        bal_row = alloc.alloc()
+        alloc._ws.cell(row=bal_row, column=1, value=f"debt_balance_{k + 1}")
+        alloc.write_cells(bal_row, _debt_balance_formulas(inst, dref, bal_row,
+                                                          alloc._n), mfmt)
 
-        # Interest (on PRE-payment balance = prior balance or opening)
-        int_formulas = [
-            f"={dref.name_open}*{dref.name_rate}/12" if m_idx == 0
-            else f"={get_column_letter(sc + m_idx - 1)}{bal_row}*{dref.name_rate}/12"
-            for m_idx in range(n)
-        ]
-        int_row = emit_cells(f"interest_{k + 1}", int_formulas)
+        int_row = alloc.emit_cells(f"interest_{k + 1}",
+                                   _debt_interest_formulas(dref, bal_row,
+                                                           alloc._n))
         debt_int_rows.append(int_row)
 
-        # Principal
-        prin_formulas: list[str] = []
-        for m_idx in range(n):
-            if inst.kind != "term_loan":
-                prin_formulas.append("=0")
-            elif m_idx == 0:
-                prin_formulas.append(f"=MIN({dref.name_prin},{dref.name_open})")
-            else:
-                pc = get_column_letter(sc + m_idx - 1)
-                prin_formulas.append(f"=MIN({dref.name_prin},{pc}{bal_row})")
-        prin_row = emit_cells(f"principal_{k + 1}", prin_formulas)
+        prin_row = alloc.emit_cells(f"principal_{k + 1}",
+                                    _debt_principal_formulas(inst, dref,
+                                                             bal_row, alloc._n))
         debt_prin_rows.append(prin_row)
 
-    # -- Interest and principal totals --
-    if debt_int_rows:
-        r_int = emit_fn(
-            "interest",
-            lambda m, col: "=" + "+".join(f"{col}{r}" for r in debt_int_rows),
+    return debt_int_rows, debt_prin_rows
+
+
+def _total_or_zero(
+    label: str, rows: list[int], alloc: _RowAlloc,
+) -> int:
+    if rows:
+        return alloc.emit_fn(
+            label,
+            lambda m, col, rs=tuple(rows): "=" + "+".join(f"{col}{r}" for r in rs),
         )
-    else:
-        r_int = emit_fn("interest", lambda m, col: "=0")
+    return alloc.emit_fn(label, lambda m, col: "=0")
 
-    if debt_prin_rows:
-        r_prin = emit_fn(
-            "principal",
-            lambda m, col: "=" + "+".join(f"{col}{r}" for r in debt_prin_rows),
-        )
-    else:
-        r_prin = emit_fn("principal", lambda m, col: "=0")
 
-    # -- Pretax income (EBIT - interest; EBIT = EBITDA - D&A) --
-    r_pretax = emit_fn(
-        "pretax_income",
-        lambda m, col: f"={col}{r_ebitda}-{col}{r_da}-{col}{r_int}",
-    )
-
-    # -- NOL: three rows that cross-reference each other and prior month --
+def _build_nol_block(
+    cfg: EntityConfig, n: int, r_pretax: int, alloc: _RowAlloc, mfmt: str,
+) -> tuple[int, int, int]:
+    """NOL opening/used/closing rows that cross-reference each other."""
     # Allocate all three rows first, then fill
-    nol_open_row = alloc()
-    nol_used_row = alloc()
-    nol_close_row = alloc()
-    ws.cell(row=nol_open_row, column=1, value="nol_opening")
-    ws.cell(row=nol_used_row, column=1, value="nol_used")
-    ws.cell(row=nol_close_row, column=1, value="nol_closing")
+    nol_open_row = alloc.alloc()
+    nol_used_row = alloc.alloc()
+    nol_close_row = alloc.alloc()
+    alloc._ws.cell(row=nol_open_row, column=1, value="nol_opening")
+    alloc._ws.cell(row=nol_used_row, column=1, value="nol_used")
+    alloc._ws.cell(row=nol_close_row, column=1, value="nol_closing")
 
     for m_idx in range(n):
-        cl = get_column_letter(sc + m_idx)
+        cl = get_column_letter(_MODEL_START_COL + m_idx)
         # nol_opening
-        nol_o = "=open_nol" if m_idx == 0 else f"={get_column_letter(sc + m_idx - 1)}{nol_close_row}"
-        ws.cell(row=nol_open_row, column=sc + m_idx, value=nol_o).number_format = mfmt
+        nol_o = ("=open_nol" if m_idx == 0
+                 else f"={get_column_letter(_MODEL_START_COL + m_idx - 1)}{nol_close_row}")
+        alloc._ws.cell(row=nol_open_row, column=_MODEL_START_COL + m_idx,
+                       value=nol_o).number_format = mfmt
         # nol_used
-        ws.cell(
-            row=nol_used_row, column=sc + m_idx,
+        alloc._ws.cell(
+            row=nol_used_row, column=_MODEL_START_COL + m_idx,
             value=f"=MIN({cl}{nol_open_row},MAX(0,{cl}{r_pretax}))",
         ).number_format = mfmt
         # nol_closing
-        ws.cell(
-            row=nol_close_row, column=sc + m_idx,
+        alloc._ws.cell(
+            row=nol_close_row, column=_MODEL_START_COL + m_idx,
             value=f"={cl}{nol_open_row}-{cl}{nol_used_row}",
         ).number_format = mfmt
+    return nol_open_row, nol_used_row, nol_close_row
 
-    # -- Tax, net income --
-    r_tax = emit_fn(
-        "tax",
-        lambda m, col: f"=(MAX(0,{col}{r_pretax})-{col}{nol_used_row})*tax_rate",
-    )
-    r_ni = emit_fn("net_income", lambda m, col: f"={col}{r_pretax}-{col}{r_tax}")
 
-    # -- Working capital balances --
-    r_ar = emit_fn("ar_balance", lambda m, col: f"={col}{r_rev}*dso_days/30")
-    r_ap = emit_fn("ap_balance", lambda m, col: f"={col}{r_cogs}*dpo_days/30")
-    r_inv = emit_fn("inv_balance", lambda m, col: f"={col}{r_cogs}*dio_days/30")
-
-    # WC cash impact (first-month references opening balances)
-    wc_formulas: list[str] = []
+def _wc_cash_impact_formulas(
+    n: int, r_ar: int, r_ap: int, r_inv: int,
+) -> list[str]:
+    """First month vs opening balances; later months vs prior column."""
+    formulas: list[str] = []
     for m_idx in range(n):
-        cl = get_column_letter(sc + m_idx)
+        cl = get_column_letter(_MODEL_START_COL + m_idx)
         if m_idx == 0:
-            wc_formulas.append(
+            formulas.append(
                 f"=-({cl}{r_ar}-open_ar)"
                 f"+({cl}{r_ap}-open_ap)"
                 f"-({cl}{r_inv}-open_inventory)"
             )
         else:
-            pc = get_column_letter(sc + m_idx - 1)
-            wc_formulas.append(
+            pc = get_column_letter(_MODEL_START_COL + m_idx - 1)
+            formulas.append(
                 f"=-({cl}{r_ar}-{pc}{r_ar})"
                 f"+({cl}{r_ap}-{pc}{r_ap})"
                 f"-({cl}{r_inv}-{pc}{r_inv})"
             )
-    r_wc = emit_cells("wc_cash_impact", wc_formulas)
+    return formulas
 
-    # -- Operating cash flow, capex, FCF, change in cash --
-    r_ocf = emit_fn(
-        "operating_cash_flow",
-        lambda m, col: f"={col}{r_ni}+{col}{r_da}+{col}{r_wc}",
-    )
-    r_capex = emit_fn("capex", lambda m, col: "=capex_monthly")
-    r_fcf = emit_fn("free_cash_flow", lambda m, col: f"={col}{r_ocf}-{col}{r_capex}")
-    r_chg = emit_fn("change_in_cash", lambda m, col: f"={col}{r_fcf}-{col}{r_prin}")
 
-    # Ending cash (cumulative, references own prior cell)
-    end_row = alloc()
-    ws.cell(row=end_row, column=1, value="ending_cash")
+def _ending_cash_formulas(n: int, r_chg: int, end_row: int) -> list[str]:
+    formulas: list[str] = []
     for m_idx in range(n):
-        cl = get_column_letter(sc + m_idx)
+        cl = get_column_letter(_MODEL_START_COL + m_idx)
         if m_idx == 0:
-            formula = f"=open_cash+{cl}{r_chg}"
+            formulas.append(f"=open_cash+{cl}{r_chg}")
         else:
-            pc = get_column_letter(sc + m_idx - 1)
-            formula = f"={pc}{end_row}+{cl}{r_chg}"
-        ws.cell(row=end_row, column=sc + m_idx, value=formula).number_format = mfmt
+            pc = get_column_letter(_MODEL_START_COL + m_idx - 1)
+            formulas.append(f"={pc}{end_row}+{cl}{r_chg}")
+    return formulas
+
+
+def _build_model(
+    wb: Workbook,
+    cfg: EntityConfig,
+    channel_refs: list[_ChannelRef],
+    opex_names: list[str],
+    debt_refs: list[_DebtRef],
+) -> None:
+    ws = wb["Model"]
+    idx = month_index(cfg.start_month, cfg.horizon_months)
+    n = cfg.horizon_months
+    mfmt = money_format()
+
+    alloc = _RowAlloc(ws, n_cols=n, default_fmt=mfmt)
+
+    _emit_header(ws, idx)
+
+    # -- Revenue, COGS, gross profit --
+    _ch_rev_rows, r_rev, r_cogs = _build_revenue_block(
+        ws, cfg, channel_refs, idx, alloc)
+    r_gp = alloc.emit_fn("gross_profit",
+                         lambda m, col: f"={col}{r_rev}-{col}{r_cogs}")
+
+    # -- Opex, EBITDA, D&A --
+    r_opex = _build_opex_block(cfg, opex_names, r_rev, alloc)
+    r_ebitda = alloc.emit_fn("ebitda",
+                             lambda m, col: f"={col}{r_gp}-{col}{r_opex}")
+    r_da = alloc.emit_fn("da", lambda m, col: "=da_monthly")
+
+    # -- Per-instrument debt rows then totals --
+    debt_int_rows, debt_prin_rows = _build_debt_block(
+        ws, cfg, debt_refs, alloc, mfmt)
+    r_int = _total_or_zero("interest", debt_int_rows, alloc)
+    r_prin = _total_or_zero("principal", debt_prin_rows, alloc)
+
+    # -- Pretax income (EBIT - interest; EBIT = EBITDA - D&A) --
+    r_pretax = alloc.emit_fn(
+        "pretax_income",
+        lambda m, col: f"={col}{r_ebitda}-{col}{r_da}-{col}{r_int}")
+
+    # -- NOL, tax, net income --
+    _nol_open_row, nol_used_row, _nol_close_row = _build_nol_block(
+        cfg, n, r_pretax, alloc, mfmt)
+    r_tax = alloc.emit_fn(
+        "tax",
+        lambda m, col: f"=(MAX(0,{col}{r_pretax})-{col}{nol_used_row})*tax_rate",
+    )
+    r_ni = alloc.emit_fn("net_income",
+                         lambda m, col: f"={col}{r_pretax}-{col}{r_tax}")
+
+    # -- Working capital balances and cash impact --
+    r_ar = alloc.emit_fn("ar_balance",
+                         lambda m, col: f"={col}{r_rev}*dso_days/30")
+    r_ap = alloc.emit_fn("ap_balance",
+                         lambda m, col: f"={col}{r_cogs}*dpo_days/30")
+    r_inv = alloc.emit_fn("inv_balance",
+                          lambda m, col: f"={col}{r_cogs}*dio_days/30")
+    r_wc = alloc.emit_cells(
+        "wc_cash_impact",
+        _wc_cash_impact_formulas(n, r_ar, r_ap, r_inv))
+
+    # -- Operating cash flow, capex, FCF, change in cash, ending cash --
+    r_ocf = alloc.emit_fn(
+        "operating_cash_flow",
+        lambda m, col: f"={col}{r_ni}+{col}{r_da}+{col}{r_wc}")
+    r_capex = alloc.emit_fn("capex", lambda m, col: "=capex_monthly")
+    r_fcf = alloc.emit_fn("free_cash_flow",
+                          lambda m, col: f"={col}{r_ocf}-{col}{r_capex}")
+    r_chg = alloc.emit_fn("change_in_cash",
+                          lambda m, col: f"={col}{r_fcf}-{col}{r_prin}")
+
+    end_row = alloc.alloc()
+    ws.cell(row=end_row, column=1, value="ending_cash")
+    alloc.write_cells(end_row, _ending_cash_formulas(n, r_chg, end_row), mfmt)
 
     freeze_header(ws, first_data_cell="B2")
 
