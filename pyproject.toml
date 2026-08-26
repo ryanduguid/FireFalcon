@@ -34,7 +34,6 @@ openfpa = "pyfpa.cli:main"
 [project.urls]
 Homepage = "https://github.com/ryanduguid/FireFalcon"
 Repository = "https://github.com/ryanduguid/FireFalcon"
-Issues = "https://github.com/ryanduguid/FireFalcon/issues"
 Upstream = "https://github.com/JeffBrines/openfpa"
 
 [build-system]
