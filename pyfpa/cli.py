@@ -1,21 +1,15 @@
 from __future__ import annotations
 
 import json
-import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
 from pyfpa.cli_helpers import (
-    EXIT_FAILED,
-    EXIT_OK,
-    EXIT_USAGE,
-    SCHEMA_VERSION,
     JsonArgumentParser,
     _failure,
     _root,
     _success,
-    _write_json,
 )
 from pyfpa.cli_commands.learning import (
     command_context_pack,

@@ -57,10 +57,6 @@ def verify_workbook(
         for r in range(2, model_ws.max_row + 1)
     }
 
-    # The formulas library preserves the original filename casing for the book
-    # part and uppercases the sheet name. Confirmed format: "'[m.xlsx]MODEL'!B3"
-    book_tag = f"[{path.name}]MODEL"
-
     failures: list[str] = []
     max_dev = 0.0
     lines = 0

@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from pyfpa.config.schemas import EntityConfig
 from pyfpa.models.cashflow import cashflow_from_config
 from pyfpa.backtest.snapshot import snapshot_forecast, save_snapshot
