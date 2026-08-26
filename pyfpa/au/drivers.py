@@ -104,13 +104,9 @@ def fetch_rba_series(name: str) -> DriverSeries:
         raise ValueError(f"series id {series_id} not present in {table_csv}") from e
 
     units = ""
-    freq = ""
     units_row = frame.index[frame[0] == "Units"]
     if not units_row.empty:
         units = str(frame.loc[units_row[0], col])
-    freq_row = frame.index[frame[0] == "Frequency"]
-    if not freq_row.empty:
-        freq = str(frame.loc[freq_row[0], col])
 
     data: dict[str, float] = {}
     for i in range(header_row[0] + 1, len(frame)):
