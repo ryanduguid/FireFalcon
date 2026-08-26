@@ -1,3 +1,17 @@
+
+```
++----------------------------------------------------------------------+
+|                              FireFalcon                              |
++----------------------------------------------------------------------+
+|          Australian FP&A pack on openfpa: 30 June, Xero AU           |
++----------------------------------+-----------------------------------+
+| DR  what it gives you            | CR  what it needs                 |
++----------------------------------+-----------------------------------+
+| 30 June year adjustments         | an AI coding agent like Claude    |
+| GST BAS cash timing rules        | company workspace and data        |
+| AU payroll on cost rules         | -                                 |
++----------------------------------+-----------------------------------+
+```
 Australian FP&A pack on [openfpa](https://github.com/JeffBrines/openfpa) (Jeff Brines / Guiderail): 30 June years, Xero AU, GST/BAS. Not the upstream product.
 
 [![CI](https://github.com/ryanduguid/FireFalcon/actions/workflows/ci.yml/badge.svg)](https://github.com/ryanduguid/FireFalcon/actions/workflows/ci.yml)
