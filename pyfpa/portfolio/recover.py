@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from pyfpa.backtest.snapshot import Snapshot, load_snapshot
+from pyfpa.memory.workspace import Workspace
 
 
 def recover_actuals(snapshot: Snapshot) -> dict[str, float]:
@@ -22,7 +23,7 @@ def recover_actuals(snapshot: Snapshot) -> dict[str, float]:
 def best_snapshot(client_path: str | Path) -> Snapshot | None:
     """The lowest-fitness scored snapshot in <client>/.fpa/forecasts/ - the
     assumptions that worked best for that client. None if no scored snapshot."""
-    forecasts = Path(client_path) / ".fpa" / "forecasts"
+    forecasts = Workspace.open(client_path).memory / "forecasts"
     if not forecasts.exists():
         return None
     snaps = [load_snapshot(f) for f in sorted(forecasts.glob("*.snapshot.yaml"))]

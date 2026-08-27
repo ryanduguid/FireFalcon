@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import argparse
 
-from pyfpa.cli_helpers import _failure, _root, _success
-from pyfpa.memory.workspace import workspace_path
+from pyfpa.cli_helpers import _failure, _success
+from pyfpa.memory.workspace import Workspace
 
 
 def command_correction_record(args: argparse.Namespace) -> int:
     from pyfpa.memory.corrections import Correction, Override, save_correction
 
-    root = _root(args.path)
-    workspace = workspace_path(root)
-    if not workspace.is_dir():
+    opened = Workspace.open(args.path)
+    root = opened.root
+    workspace = opened.memory
+    if not opened.initialized:
         return _failure(
             "correction-record",
             root,
@@ -52,9 +53,10 @@ def command_correction_record(args: argparse.Namespace) -> int:
 def command_correction_list(args: argparse.Namespace) -> int:
     from pyfpa.memory.corrections import load_corrections
 
-    root = _root(args.path)
-    workspace = workspace_path(root)
-    if not workspace.is_dir():
+    opened = Workspace.open(args.path)
+    root = opened.root
+    workspace = opened.memory
+    if not opened.initialized:
         return _failure(
             "correction-list",
             root,
@@ -87,9 +89,10 @@ def command_scorecard_render(args: argparse.Namespace) -> int:
     from pyfpa.backtest.learn import render_scorecard
     from pyfpa.backtest.snapshot import load_snapshot
 
-    root = _root(args.path)
-    workspace = workspace_path(root)
-    if not workspace.is_dir():
+    opened = Workspace.open(args.path)
+    root = opened.root
+    workspace = opened.memory
+    if not opened.initialized:
         return _failure(
             "scorecard-render",
             root,
@@ -134,9 +137,10 @@ def command_scorecard_render(args: argparse.Namespace) -> int:
 def command_experiment_list(args: argparse.Namespace) -> int:
     from pyfpa.memory.experiments import load_experiments
 
-    root = _root(args.path)
-    workspace = workspace_path(root)
-    if not workspace.is_dir():
+    opened = Workspace.open(args.path)
+    root = opened.root
+    workspace = opened.memory
+    if not opened.initialized:
         return _failure(
             "experiment-list",
             root,
@@ -174,9 +178,10 @@ def command_experiment_list(args: argparse.Namespace) -> int:
 def command_context_pack(args: argparse.Namespace) -> int:
     from pyfpa.memory.retrieval import build_context_pack, build_memory_index, search_memory
 
-    root = _root(args.path)
-    workspace = workspace_path(root)
-    if not workspace.is_dir():
+    opened = Workspace.open(args.path)
+    root = opened.root
+    workspace = opened.memory
+    if not opened.initialized:
         return _failure(
             "context-pack",
             root,
@@ -210,9 +215,10 @@ def command_onboarding_render(args: argparse.Namespace) -> int:
     from pyfpa.memory.intake import load_intake
     from pyfpa.memory.onboarding import ArchitectureProposal, write_onboarding_outputs
 
-    root = _root(args.path)
-    workspace = workspace_path(root)
-    if not workspace.is_dir():
+    opened = Workspace.open(args.path)
+    root = opened.root
+    workspace = opened.memory
+    if not opened.initialized:
         return _failure(
             "onboarding-render",
             root,

@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from pyfpa.cli_helpers import _failure, _root, _success
+from pyfpa.cli_helpers import _failure, _success
 from pyfpa.memory.connectors import (
     connector_bundle_path,
     load_connector_manifests,
@@ -23,15 +23,7 @@ from pyfpa.memory.lineage import (
     save_mapping_registry,
     save_source_registry,
 )
-from pyfpa.memory.workspace import workspace_path
-
-
-def _source_registry_path(root: Path) -> Path:
-    return workspace_path(root) / "sources" / "registry.yaml"
-
-
-def _mapping_registry_path(root: Path) -> Path:
-    return workspace_path(root) / "mappings" / "registry.yaml"
+from pyfpa.memory.workspace import Workspace
 
 
 def _expected_from_json(value: str | None) -> dict[str, float] | None:
@@ -47,9 +39,10 @@ def _expected_from_json(value: str | None) -> dict[str, float] | None:
 
 
 def command_source_register(args: argparse.Namespace) -> int:
-    root = _root(args.path)
-    registry_path = _source_registry_path(root)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    registry_path = workspace.source_registry_path
+    if not workspace.initialized:
         return _failure(
             "source-register",
             root,
@@ -88,9 +81,10 @@ def command_source_register(args: argparse.Namespace) -> int:
 
 
 def command_source_list(args: argparse.Namespace) -> int:
-    root = _root(args.path)
-    registry_path = _source_registry_path(root)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    registry_path = workspace.source_registry_path
+    if not workspace.initialized:
         return _failure(
             "source-list",
             root,
@@ -118,7 +112,7 @@ def command_source_list(args: argparse.Namespace) -> int:
 
 
 def command_source_profile(args: argparse.Namespace) -> int:
-    root = _root(args.path)
+    root = Workspace.open(args.path).root
     file_path = Path(args.file).expanduser()
     if not file_path.is_absolute():
         file_path = root / file_path
@@ -134,9 +128,10 @@ def command_source_profile(args: argparse.Namespace) -> int:
 
 
 def command_mapping_register(args: argparse.Namespace) -> int:
-    root = _root(args.path)
-    registry_path = _mapping_registry_path(root)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    registry_path = workspace.mapping_registry_path
+    if not workspace.initialized:
         return _failure(
             "mapping-register",
             root,
@@ -144,7 +139,7 @@ def command_mapping_register(args: argparse.Namespace) -> int:
             "initialize the company workspace before registering mappings",
         )
     try:
-        sources = load_source_registry(_source_registry_path(root))
+        sources = load_source_registry(workspace.source_registry_path)
         if not any(source.source_id == args.source_id for source in sources.sources):
             raise ValueError(f"source is not registered: {args.source_id}")
         mapping = MappingRule(
@@ -174,9 +169,10 @@ def command_mapping_register(args: argparse.Namespace) -> int:
 
 
 def command_mapping_list(args: argparse.Namespace) -> int:
-    root = _root(args.path)
-    registry_path = _mapping_registry_path(root)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    registry_path = workspace.mapping_registry_path
+    if not workspace.initialized:
         return _failure(
             "mapping-list",
             root,
@@ -205,8 +201,9 @@ def command_mapping_list(args: argparse.Namespace) -> int:
 
 
 def command_reconcile_source(args: argparse.Namespace) -> int:
-    root = _root(args.path)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    if not workspace.initialized:
         return _failure(
             "reconcile-source",
             root,
@@ -214,7 +211,7 @@ def command_reconcile_source(args: argparse.Namespace) -> int:
             "initialize the company workspace before reconciling sources",
         )
     try:
-        source_registry = load_source_registry(_source_registry_path(root))
+        source_registry = load_source_registry(workspace.source_registry_path)
         source = next(
             item for item in source_registry.sources
             if item.source_id == args.source_id
@@ -225,7 +222,7 @@ def command_reconcile_source(args: argparse.Namespace) -> int:
         result = reconcile_account_table(
             file_path.resolve(),
             source_id=args.source_id,
-            mappings=load_mapping_registry(_mapping_registry_path(root)),
+            mappings=load_mapping_registry(workspace.mapping_registry_path),
             account_column=args.account_column,
             amount_column=args.amount_column,
             expected=_expected_from_json(args.expected_json),
@@ -257,8 +254,9 @@ def command_reconcile_source(args: argparse.Namespace) -> int:
 
 
 def command_connector_scaffold(args: argparse.Namespace) -> int:
-    root = _root(args.path)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    if not workspace.initialized:
         return _failure(
             "connector-scaffold",
             root,
@@ -269,7 +267,7 @@ def command_connector_scaffold(args: argparse.Namespace) -> int:
     if not fixture.is_absolute():
         fixture = root / fixture
     try:
-        sources = load_source_registry(_source_registry_path(root))
+        sources = load_source_registry(workspace.source_registry_path)
         if not any(source.source_id == args.source_id for source in sources.sources):
             raise ValueError(f"source is not registered: {args.source_id}")
         manifest, reconciliation = scaffold_connector_bundle(
@@ -281,7 +279,7 @@ def command_connector_scaffold(args: argparse.Namespace) -> int:
             fixture=fixture.resolve(),
             account_column=args.account_column,
             amount_column=args.amount_column,
-            mappings=load_mapping_registry(_mapping_registry_path(root)),
+            mappings=load_mapping_registry(workspace.mapping_registry_path),
             overwrite=args.overwrite,
         )
     except Exception as exc:
@@ -307,8 +305,9 @@ def command_connector_scaffold(args: argparse.Namespace) -> int:
 
 
 def command_connector_list(args: argparse.Namespace) -> int:
-    root = _root(args.path)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    if not workspace.initialized:
         return _failure(
             "connector-list",
             root,
@@ -340,8 +339,9 @@ def command_connector_list(args: argparse.Namespace) -> int:
 
 
 def command_connector_validate(args: argparse.Namespace) -> int:
-    root = _root(args.path)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    if not workspace.initialized:
         return _failure(
             "connector-validate",
             root,
@@ -352,7 +352,7 @@ def command_connector_validate(args: argparse.Namespace) -> int:
         result = validate_connector_bundle(
             root,
             name=args.name,
-            mappings=load_mapping_registry(_mapping_registry_path(root)),
+            mappings=load_mapping_registry(workspace.mapping_registry_path),
             timeout=args.timeout,
         )
     except Exception as exc:
