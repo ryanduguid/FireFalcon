@@ -55,10 +55,11 @@ connectors/generated/<name>/
 ```
 
 The manifest binds the connector to a registered source, authentication method,
-redacted fixture, fixture command, normalized schema, and golden mapped totals.
-`connector-validate` executes fixture mode and reconciles the normalized output.
-It does not test or access live credentials. Live extraction remains
-company-specific and uses host-managed authentication.
+redacted fixture, closed fixture adapter, source columns, and golden mapped
+totals. `connector-validate` parses the fixture in-process and reconciles it
+without importing or running bundle code. It does not test or access live
+credentials. Live extraction remains company-specific and uses host-managed
+authentication.
 
 ## Onboarding
 
