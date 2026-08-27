@@ -79,3 +79,9 @@ This is the honest part - surfaced, not hidden.
 | `skills/generated/segment-rollup/` | The bespoke self-extension skill |
 | `data/` | Committed actuals + source trail |
 | `output/` | Generated reproduction, holdout, forecast, sensitivity, and Excel artifacts |
+
+## Binary provenance
+
+| Asset | Purpose | Source | Licence | Generator | SHA-256 | Refresh trigger |
+|---|---|---|---|---|---|---|
+| `output/foxf-forecast.xlsx` | Reviewable workbook for the holdout, forecast and divestiture outputs | Public SEC filing extracts documented in `data/SOURCES.md`, plus the checked Fox model | MIT for this generated example output; filing sources remain identified in `data/SOURCES.md` | From this directory, run `python3 run_foxf.py`; pandas writes the workbook assembled in `run_foxf.py` | `0a0784f333ba53b6673b8175cdbc795a02aa3594540ce73323d20088d8cdba2b` | Regenerate when a source CSV, Fox model, research result or workbook assembly changes |

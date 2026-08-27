@@ -3,6 +3,7 @@
 Phase A reproduces known actual-driver mechanics; Phase B is the independent
 FY2025 holdout; Phases C/D cover the forward forecast and sensitivity.
 """
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
@@ -104,6 +105,20 @@ def test_foxf_pipeline_is_registered_for_agent_discovery():
     assert entrypoint.command == ["python3", "run_foxf.py"]
     assert "output/foxf-forecast.xlsx" in entrypoint.outputs
     assert (EXAMPLE / ".fpa" / "decisions" / "initial-model-architecture.md").exists()
+
+
+def test_committed_foxf_workbook_has_current_provenance():
+    workbook = EXAMPLE / "output" / "foxf-forecast.xlsx"
+    readme = (EXAMPLE / "README.md").read_text(encoding="utf-8")
+
+    assert hashlib.sha256(workbook.read_bytes()).hexdigest() in readme
+    for value in (
+        "output/foxf-forecast.xlsx",
+        "data/SOURCES.md",
+        "python3 run_foxf.py",
+        "MIT",
+    ):
+        assert value in readme
 
 
 def test_foxf_sources_and_mappings_are_registered():
