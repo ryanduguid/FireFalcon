@@ -4,18 +4,20 @@ from math import isfinite
 from pathlib import Path, PurePosixPath
 import re
 import shutil
-import subprocess
+import stat
 import tempfile
-from typing import Literal
+from typing import Callable, Literal
+from uuid import uuid4
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from pyfpa.memory.lineage import MappingRegistry, reconcile_account_table
 
 
 ConnectorAuth = Literal["none", "host_environment", "mcp"]
 _CONNECTOR_NAME = re.compile(r"^[a-z][a-z0-9-]*$")
+_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 
 
 def _relative_path(value: str) -> str:
@@ -32,8 +34,152 @@ def _connector_name(value: str) -> str:
     return value
 
 
+def _lstat(path: Path):
+    try:
+        return path.lstat()
+    except FileNotFoundError:
+        return None
+
+
+def _is_link_or_reparse(path_stat) -> bool:
+    return stat.S_ISLNK(path_stat.st_mode) or bool(
+        getattr(path_stat, "st_file_attributes", 0)
+        & _FILE_ATTRIBUTE_REPARSE_POINT
+    )
+
+
+def _canonical_company_root(company_root: str | Path) -> Path:
+    root = Path(company_root).resolve(strict=True)
+    if not root.is_dir():
+        raise NotADirectoryError(f"company root is not a directory: {root}")
+    return root
+
+
+def _assert_safe_existing_chain(root: Path, target: Path) -> None:
+    try:
+        relative = target.relative_to(root)
+    except ValueError as error:
+        raise ValueError(f"connector path escapes company root: {target}") from error
+
+    current = root
+    for part in relative.parts:
+        current /= part
+        current_stat = _lstat(current)
+        if current_stat is None:
+            break
+        if _is_link_or_reparse(current_stat):
+            raise ValueError(
+                "connector workspace paths must not contain symlinks or "
+                f"reparse points: {current}"
+            )
+        if current != target and not stat.S_ISDIR(current_stat.st_mode):
+            raise NotADirectoryError(
+                f"connector workspace ancestor is not a directory: {current}"
+            )
+
+
+def _ensure_plain_directory(root: Path, directory: Path) -> None:
+    relative = directory.relative_to(root)
+    current = root
+    for part in relative.parts:
+        current /= part
+        current_stat = _lstat(current)
+        if current_stat is None:
+            try:
+                current.mkdir()
+            except FileExistsError:
+                pass
+            current_stat = current.lstat()
+        if _is_link_or_reparse(current_stat):
+            raise ValueError(
+                "connector workspace paths must not contain symlinks or "
+                f"reparse points: {current}"
+            )
+        if not stat.S_ISDIR(current_stat.st_mode):
+            raise NotADirectoryError(
+                f"connector workspace path is not a directory: {current}"
+            )
+
+
+def _assert_plain_tree(root: Path, tree: Path) -> None:
+    _assert_safe_existing_chain(root, tree)
+    pending = [tree]
+    while pending:
+        current = pending.pop()
+        current_stat = current.lstat()
+        if _is_link_or_reparse(current_stat):
+            raise ValueError(
+                "connector bundle trees must not contain symlinks or "
+                f"reparse points: {current}"
+            )
+        if stat.S_ISDIR(current_stat.st_mode):
+            pending.extend(current.iterdir())
+
+
+def _remove_verified_tree(root: Path, tree: Path) -> None:
+    _assert_plain_tree(root, tree)
+    shutil.rmtree(tree)
+
+
+def _replace_generated_tree(
+    root: Path,
+    bundle: Path,
+    *,
+    overwrite: bool,
+    build_fn: Callable[[Path], None],
+) -> None:
+    _assert_safe_existing_chain(root, bundle)
+    existing_bundle = _lstat(bundle)
+    if existing_bundle is not None:
+        if not stat.S_ISDIR(existing_bundle.st_mode):
+            raise NotADirectoryError(f"connector bundle is not a directory: {bundle}")
+        if not overwrite:
+            raise FileExistsError(f"connector bundle already exists: {bundle}")
+        _assert_plain_tree(root, bundle)
+
+    generated = bundle.parent
+    _ensure_plain_directory(root, generated)
+    staging = Path(
+        tempfile.mkdtemp(prefix=f".{bundle.name}.staging-", dir=generated)
+    )
+    installed = False
+    try:
+        build_fn(staging)
+        _assert_plain_tree(root, staging)
+
+        _assert_safe_existing_chain(root, bundle)
+        existing_bundle = _lstat(bundle)
+        backup = None
+        if existing_bundle is not None:
+            if not overwrite:
+                raise FileExistsError(f"connector bundle already exists: {bundle}")
+            if not stat.S_ISDIR(existing_bundle.st_mode):
+                raise NotADirectoryError(
+                    f"connector bundle is not a directory: {bundle}"
+                )
+            _assert_plain_tree(root, bundle)
+            backup = generated / f".{bundle.name}.backup-{uuid4().hex}"
+            bundle.rename(backup)
+
+        try:
+            staging.rename(bundle)
+        except OSError:
+            if backup is not None and _lstat(bundle) is None:
+                backup.rename(bundle)
+            raise
+        installed = True
+
+        if backup is not None:
+            _remove_verified_tree(root, backup)
+    finally:
+        if not installed and _lstat(staging) is not None:
+            _remove_verified_tree(root, staging)
+
+
 class ConnectorManifest(BaseModel):
-    schema_version: int = 1
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[2] = 2
     name: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
     source_id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
     description: str
@@ -41,10 +187,8 @@ class ConnectorManifest(BaseModel):
     source_account_column: str
     source_amount_column: str
     fixture_path: str
-    fixture_command: list[str] = Field(min_length=1)
+    fixture_adapter: Literal["account-amount-csv"] = "account-amount-csv"
     expected_totals: dict[str, float] = Field(min_length=1)
-    live_ready: bool = False
-    live_command: list[str] = Field(default_factory=list)
 
     @field_validator(
         "description",
@@ -63,14 +207,6 @@ class ConnectorManifest(BaseModel):
     def validate_fixture_path(cls, value: str) -> str:
         return _relative_path(value)
 
-    @field_validator("fixture_command", "live_command")
-    @classmethod
-    def validate_commands(cls, value: list[str]) -> list[str]:
-        command = [item.strip() for item in value]
-        if any(not item for item in command):
-            raise ValueError("command arguments must not be empty")
-        return command
-
     @field_validator("expected_totals")
     @classmethod
     def validate_expected_totals(cls, value: dict[str, float]) -> dict[str, float]:
@@ -81,18 +217,9 @@ class ConnectorManifest(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def validate_command_contract(self):
+    def validate_manifest_contract(self):
         if self.source_account_column == self.source_amount_column:
             raise ValueError("source account and amount columns must differ")
-        fixture_tokens = set(self.fixture_command)
-        if "{fixture}" not in fixture_tokens or "{output}" not in fixture_tokens:
-            raise ValueError(
-                "fixture_command must contain {fixture} and {output} arguments"
-            )
-        if "--live" in fixture_tokens:
-            raise ValueError("fixture_command must not enable live mode")
-        if self.live_ready and not self.live_command:
-            raise ValueError("live_ready connectors require a live_command")
         return self
 
 
@@ -192,7 +319,7 @@ def normalize_fixture(path: str | Path) -> dict[str, float]:
 
 def extract_live() -> dict[str, float]:
     raise NotImplementedError(
-        "Implement host-authenticated live extraction before setting live_ready"
+        "Implement host-authenticated live extraction before invoking live mode"
     )
 
 
@@ -241,7 +368,7 @@ def _readme(manifest: ConnectorManifest) -> str:
 - Source ID: `{manifest.source_id}`
 - Authentication: `{manifest.auth_method}`
 - Fixture: `{manifest.fixture_path}`
-- Fixture output: canonical `Account,Amount` CSV
+- Fixture adapter: built-in `{manifest.fixture_adapter}` parser
 - Duplicate accounts: fail
 - Unmapped accounts: fail
 - Golden mapped totals: stored in `connector.yaml`
@@ -253,8 +380,9 @@ openfpa connector-validate . --name {manifest.name}
 ```
 
 Fixture validation never accesses a live system. Implement `extract_live()` in
-`connector.py`, add a fixture-backed test for the source response shape, and set
-`live_ready: true` only after the live command is safe and documented.
+`connector.py` and add a fixture-backed test for the source response shape.
+Keep live extraction outside `connector.yaml` and invoke it only through an
+explicit, host-controlled workflow.
 
 Never commit credentials or an unredacted production export.
 """
@@ -273,7 +401,8 @@ def scaffold_connector_bundle(
     mappings: MappingRegistry,
     overwrite: bool = False,
 ) -> tuple[ConnectorManifest, dict]:
-    company_root = Path(company_root)
+    company_root = _canonical_company_root(company_root)
+    bundle = connector_bundle_path(company_root, name)
     fixture = Path(fixture)
     if not fixture.exists():
         raise FileNotFoundError(f"connector fixture not found: {fixture}")
@@ -302,33 +431,28 @@ def scaffold_connector_bundle(
         source_account_column=account_column,
         source_amount_column=amount_column,
         fixture_path="fixtures/source.csv",
-        fixture_command=[
-            "python3",
-            "run.py",
-            "--fixture",
-            "{fixture}",
-            "--output",
-            "{output}",
-        ],
         expected_totals=reconciliation["mapped_totals"],
     )
-    bundle = connector_bundle_path(company_root, name)
-    if bundle.exists():
-        if not overwrite:
-            raise FileExistsError(f"connector bundle already exists: {bundle}")
-        shutil.rmtree(bundle)
 
-    (bundle / "fixtures").mkdir(parents=True)
-    shutil.copyfile(fixture, bundle / manifest.fixture_path)
-    save_connector_manifest(manifest, bundle)
-    (bundle / "connector.py").write_text(
-        _connector_module(
-            account_column=account_column,
-            amount_column=amount_column,
+    def build_bundle(staging: Path) -> None:
+        (staging / "fixtures").mkdir()
+        shutil.copyfile(fixture, staging / manifest.fixture_path)
+        save_connector_manifest(manifest, staging)
+        (staging / "connector.py").write_text(
+            _connector_module(
+                account_column=account_column,
+                amount_column=amount_column,
+            )
         )
+        (staging / "run.py").write_text(_runner_module())
+        (staging / "README.md").write_text(_readme(manifest))
+
+    _replace_generated_tree(
+        company_root,
+        bundle,
+        overwrite=overwrite,
+        build_fn=build_bundle,
     )
-    (bundle / "run.py").write_text(_runner_module())
-    (bundle / "README.md").write_text(_readme(manifest))
     return manifest, reconciliation
 
 
@@ -339,55 +463,44 @@ def validate_connector_bundle(
     mappings: MappingRegistry,
     timeout: float = 30.0,
 ) -> dict:
-    company_root = Path(company_root)
+    # Retained for callers of the schema-v1 API. The closed in-process adapter
+    # does not start a process whose runtime can be bounded by this value.
+    del timeout
+    company_root = _canonical_company_root(company_root)
     bundle = connector_bundle_path(company_root, name)
+    _assert_safe_existing_chain(company_root, bundle)
+    bundle_stat = _lstat(bundle)
+    if bundle_stat is None:
+        raise FileNotFoundError(f"connector bundle not found: {bundle}")
+    if not stat.S_ISDIR(bundle_stat.st_mode):
+        raise NotADirectoryError(f"connector bundle is not a directory: {bundle}")
+    _assert_safe_existing_chain(company_root, bundle / "connector.yaml")
     manifest = load_connector_manifest(bundle)
     if manifest.name != name:
         raise ValueError(
             f"connector directory {name!r} contains manifest for {manifest.name!r}"
         )
-    fixture = (bundle / manifest.fixture_path).resolve()
-    if not fixture.is_relative_to(bundle.resolve()):
+    fixture_path = bundle / manifest.fixture_path
+    _assert_safe_existing_chain(company_root, fixture_path)
+    if _lstat(fixture_path) is None:
+        raise FileNotFoundError(f"connector fixture not found: {fixture_path}")
+    fixture = fixture_path.resolve(strict=True)
+    if not fixture.is_relative_to(bundle.resolve(strict=True)):
         raise ValueError("fixture path escapes connector bundle")
-    if not fixture.exists():
-        raise FileNotFoundError(f"connector fixture not found: {fixture}")
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        output = Path(temp_dir) / "normalized.csv"
-        command = [
-            str(fixture) if item == "{fixture}"
-            else str(output) if item == "{output}"
-            else item
-            for item in manifest.fixture_command
-        ]
-        completed = subprocess.run(
-            command,
-            cwd=bundle,
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=timeout,
-        )
-        if completed.returncode != 0:
-            raise RuntimeError(
-                f"fixture command failed with exit code {completed.returncode}: "
-                f"{completed.stderr.strip()}"
-            )
-        if not output.exists():
-            raise RuntimeError("fixture command did not create normalized output")
-        reconciliation = reconcile_account_table(
-            output,
-            source_id=manifest.source_id,
-            mappings=mappings,
-            account_column="Account",
-            amount_column="Amount",
-            expected=manifest.expected_totals,
-            tolerance=0.0,
-        )
+    reconciliation = reconcile_account_table(
+        fixture,
+        source_id=manifest.source_id,
+        mappings=mappings,
+        account_column=manifest.source_account_column,
+        amount_column=manifest.source_amount_column,
+        expected=manifest.expected_totals,
+        tolerance=0.0,
+    )
     return {
         "manifest": manifest.model_dump(),
-        "command": command,
-        "returncode": completed.returncode,
+        "adapter": manifest.fixture_adapter,
+        "command": [f"builtin:{manifest.fixture_adapter}"],
+        "returncode": 0,
         "reconciliation": reconciliation,
         "passed": reconciliation["passed"],
     }
