@@ -22,6 +22,9 @@ license stay with Guiderail's openfpa. This repo adds 30 June years, Xero
 Australia, GST/BAS cash timing, AU payroll on-costs, and two worked examples:
 Harbour Light (synthetic) and ARB Corporation (ASX: ARB).
 
+**Package lifecycle:** source-only. Install from this repository; the `openfpa`
+distribution is not published to PyPI.
+
 **openfpa is an agent-native FP&A workbench.** It gives an AI coding agent a
 tested finance kernel, an operating contract, durable company memory, and a
 research loop for building the FP&A system that fits one company.
