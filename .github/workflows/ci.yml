@@ -23,6 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -40,7 +41,21 @@ jobs:
         run: uv sync --locked --extra dev
 
       - name: Run tests
+        if: matrix.python-version != '3.13'
         run: uv run --locked --extra dev pytest -q
+
+      - name: Run tests with scoped branch coverage
+        if: matrix.python-version == '3.13'
+        run: >-
+          uv run --locked --extra dev coverage run --branch
+          --source=pyfpa/memory
+          -m pytest -q
+
+      - name: Require complete changed-line coverage in connector and workspace logic
+        if: matrix.python-version == '3.13'
+        run: |
+          uv run --locked --extra dev coverage xml --include="pyfpa/memory/connectors.py,pyfpa/memory/workspace.py" -o coverage.xml
+          uv run --locked --extra dev diff-cover coverage.xml --compare-branch=origin/main --branch-coverage --fail-under=100
 
       - name: Audit locked dependencies
         if: matrix.python-version == '3.13'
