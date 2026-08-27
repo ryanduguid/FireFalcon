@@ -30,13 +30,52 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.12.5"
+          enable-cache: true
+
+      - name: Install locked environment
+        run: uv sync --locked --extra dev
 
       - name: Run tests
-        run: pytest -q
+        run: uv run --locked --extra dev pytest -q
+
+      - name: Audit locked dependencies
+        if: matrix.python-version == '3.13'
+        run: uv audit --locked
+
+  minimum-resolution:
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.12.5"
+          enable-cache: true
+
+      - name: Resolve declared minimums
+        run: uv sync --upgrade --resolution lowest-direct --extra dev
+
+      - name: Audit minimum resolution
+        run: uv audit --locked --resolution lowest-direct
+
+      - name: Run tests at declared minimums
+        run: uv run --locked --resolution lowest-direct --extra dev pytest -q
 
   connector-security-windows:
     timeout-minutes: 10
@@ -54,10 +93,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.12.5"
+          enable-cache: true
+
+      - name: Install locked environment
+        run: uv sync --locked --extra dev
 
       - name: Verify connector trust boundaries
-        run: pytest -q tests/test_memory_connectors.py
+        run: uv run --locked --extra dev pytest -q tests/test_memory_connectors.py
