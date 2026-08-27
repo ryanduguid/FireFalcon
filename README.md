@@ -320,9 +320,10 @@ connectors/generated/accounting-pl/
 
 The scaffold requires a registered source, complete mappings, and a redacted
 CSV fixture with no duplicate or unmapped accounts. It stores golden mapped
-totals in `connector.yaml`. `connector-validate` runs fixture mode only,
-normalizes the output to `Account,Amount`, and reconciles it against those
-totals. It does not contact a live system.
+totals in `connector.yaml`. `connector-validate` parses the fixture in-process
+through the closed `account-amount-csv` adapter and reconciles it against those
+totals. It does not import or run bundle code, and it does not contact a live
+system.
 
 The generated `extract_live()` function intentionally fails until the agent
 implements host-authenticated access. After the live path has its own
