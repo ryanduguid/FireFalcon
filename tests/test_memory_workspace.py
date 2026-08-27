@@ -26,7 +26,8 @@ def test_workspace_open_returns_a_canonical_immutable_value(tmp_path):
 
     assert workspace.root == company.resolve()
     assert workspace.memory == company.resolve() / ".fpa"
-    assert workspace_path(company / ".." / "company") == workspace.memory
+    legacy_root = Path("relative") / ".." / "company"
+    assert workspace_path(legacy_root) == legacy_root / ".fpa"
     with pytest.raises(FrozenInstanceError):
         workspace.root = tmp_path
 

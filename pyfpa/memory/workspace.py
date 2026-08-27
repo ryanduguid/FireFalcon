@@ -135,8 +135,8 @@ class Workspace:
 
 
 def workspace_path(company_root: str | Path) -> Path:
-    """Return the `.fpa` memory path for a company workspace."""
-    return Workspace.open(company_root).memory
+    """Return the legacy, non-canonical `.fpa` path for compatibility."""
+    return Path(company_root) / ".fpa"
 
 
 def _seed_source_registry(target: Path, business_name: str) -> None:
