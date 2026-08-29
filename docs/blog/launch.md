@@ -1,4 +1,4 @@
-# The AI is the analyst. We built its toolbelt.
+# A tested finance toolkit for an AI analyst
 
 *Open-sourcing openfpa, an agent-native FP&A workbench. By [Guiderail](https://www.guiderail.io).*
 
@@ -6,7 +6,7 @@
 
 Every founder has lived this: you don't need a full-time CFO yet, but you absolutely need CFO-grade answers. *When do we run out of cash? Can we afford this hire? What does the board need to see?* The honest answer is usually a spreadsheet someone built once, nobody fully trusts, and everyone is afraid to touch.
 
-Here's the thing we eventually admitted to ourselves: the AI coding agents are already good enough to do this work. Claude Code or Codex, pointed at your books, can interview you, write a model, and explain a variance. The agent is the superhero. What it's missing is the toolbelt: the tested accounting math, the working method, the memory, and the checks that separate a real analyst from a very confident intern.
+The AI coding agents are already good enough to do this work. Claude Code or Codex, pointed at your books, can interview you, write a model, and explain a variance. What they still need is the tested accounting math, the working method, the memory, and the checks that separate a real analyst from a very confident intern.
 
 So instead of building another FP&A *app*, we built the toolbelt.
 
@@ -19,15 +19,15 @@ openfpa gives the agent four things a bare chat session doesn't have:
 - **Durable memory.** What it learns about your business, your corrections, its own forecast track record, all of it lives as plain files in your repo. The agent is not reset every session.
 - **A research loop.** Forecast hypotheses are scored against held-out actuals, champion versus challenger. Weak challengers are kept as failed research. Promotion requires evidence and your sign-off.
 
-The agent still does the thinking. It asks the questions, writes the company-specific code, and makes the judgment calls. The toolbelt makes that work auditable, repeatable, and cumulative.
+The agent asks the questions, writes the company-specific code, and makes the judgment calls. The listed tools make that work auditable, repeatable, and cumulative.
 
-## It re-tools itself for your business
+## The agent can add tools in reviewable code
 
-The part that still surprises us: when the standard tools don't fit a company, the agent extends the toolbelt, in reviewable code, with the reasoning written down.
+When the standard tools don't fit a company, the agent extends the toolkit, in reviewable code, with the reasoning written down.
 
 The committed proof lives in the Fox Factory example below. Fox reports segment Adjusted EBITDA under ASU 2023-07, not segment gross profit, which is a company shape the base kernel didn't ship with. The agent wrote itself a `segment-rollup` skill to handle it, citing the filing facts that justified the design. Self-extending, with a human gate; never self-executing.
 
-## It thinks like a CFO, not a calculator
+## A correct model can still be wrong about the business
 
 A model that's arithmetically perfect can still be wrong about reality. The judgment layer encodes the reflexes a seasoned finance person applies without thinking:
 
@@ -37,7 +37,7 @@ A model that's arithmetically perfect can still be wrong about reality. The judg
 
 ## The cash-runway answer founders actually lose sleep over
 
-The demo company, *Ridgeline Chair Co.* (a fictional premium camping-chair brand), shows the punchline. Its 13-week cash forecast goes **negative in week 3**, as the spring inventory build lands before the summer sell-through collects, troughs at **-$146K**, then recovers. The model doesn't paper over it with an automatic credit-line draw. It shows the raw hole, because the hole *is* the answer: size a roughly $150K to $200K line to bridge the build.
+The demo company, *Ridgeline Chair Co.* (a fictional premium camping-chair brand), shows the result. Its 13-week cash forecast goes **negative in week 3**, as the spring inventory build lands before the summer sell-through collects, troughs at **-$146K**, then recovers. The model doesn't paper over it with an automatic credit-line draw. It shows the raw hole, because the hole *is* the answer: size a roughly $150K to $200K line to bridge the build.
 
 ## "Couldn't I just point Claude at my 10-K myself?"
 
@@ -49,17 +49,17 @@ So we pushed the toolbelt at the opposite of a friendly demo: **Fox Factory (NAS
 2. **Ran an FY2025 historical holdout.** Using FY2023 and FY2024 only, the research loop rejected an over-aggressive recovery hypothesis, refined it, and proposed a challenger that improved every weighted holdout metric.
 3. **Was honest about the rest.** The impairment and Fox's discrete tax benefits are shown as an explicit bridge, not laundered through the model. A lean kernel should model the operating business and *say* what it doesn't.
 4. **Forecast FY2026 and FY2027 at the segment level**, preserved working-capital continuity across the year boundary, and modeled a "what if Fox sells Marucci" cash-flow and leverage sensitivity.
-5. **Extended itself**, writing the `segment-rollup` skill described above.
+5. **Wrote the `segment-rollup` skill** described above.
 
-Here's the part a one-off analysis usually lacks: **the proof runs in CI.** Every push, on three Python versions, checks the arithmetic reproduction, historical holdout behavior, segment rollup, and forecast continuity.
+A one-off analysis usually lacks this: **the proof runs in CI.** Every push, on three Python versions, checks the arithmetic reproduction, historical holdout behavior, segment rollup, and forecast continuity.
 
-And it earned that test. Mid-build, the kernel had a subtle bug: it added depreciation back into operating cash flow without ever expensing it, silently inflating cash. That is *exactly* the error a one-shot agent emits and nobody catches. openfpa caught it because the logic lives in one tested place; the fix landed once, and a test now guarantees it never comes back. That's the whole point of a substrate: correctness becomes a property of the system, not a coin flip on each run.
+And it earned that test. Mid-build, the kernel had a subtle bug: it added depreciation back into operating cash flow without ever expensing it, silently inflating cash. That is *exactly* the error a one-shot agent emits and nobody catches. openfpa caught it because the logic lives in one tested place; the fix landed once, and a test now guarantees it never comes back. That is the point of one tested place: correctness becomes a property of the system, not a coin flip on each run.
 
 > Bare Claude is a capable analyst with a blank spreadsheet. openfpa is the tested model kernel, the encoded house methodology, and the review checklist. Rails to drive on, and gauges that catch the mistakes.
 
 ## Why open-source it?
 
-Because the most credible thing you can say about being on the frontier is to show your work, and then let people check it. The kernel is regression-tested Python built to be read and extended by an agent, not an app you configure by hand. The demo runs on synthetic data. The Fox Factory proof runs on nothing but public SEC filings, fully source-traced. Adapters for NetSuite, QuickBooks, and Shopify ship as fixture-backed scaffolds that document their live paths, and the agent builds the real connector for whatever source you actually have. The whole thing installs as a Claude plugin.
+The most credible thing you can say is to show your work, and then let people check it. The kernel is regression-tested Python built to be read and extended by an agent, not an app you configure by hand. The demo runs on synthetic data. The Fox Factory proof runs on nothing but public SEC filings, fully source-traced. Adapters for NetSuite, QuickBooks, and Shopify ship as fixture-backed scaffolds that document their live paths, and the agent builds the real connector for whatever source you actually have. The whole thing installs as a Claude plugin.
 
 Clone it. Point your agent at it. Hand it your numbers. See what they build together.
 
