@@ -101,6 +101,65 @@ def test_tariff_thb_sensitivity_is_labeled_and_hurts_ebitda():
     assert stressed < base - 1_000_000
 
 
+def test_registered_challenger_resolves_to_a_committed_research_epoch():
+    """MEMORY.md promises `research/` holds the epochs, and the registry needs them.
+
+    Without the committed epoch the recorded `source_epoch` dangles, so the
+    challenger can never be promoted however the human decides.
+    """
+    from pyfpa.research import (
+        load_epochs,
+        load_model_registry,
+        load_research_objective,
+        promote_challenger,
+    )
+
+    research = EXAMPLE / ".fpa" / "research"
+    registry = load_model_registry(EXAMPLE / ".fpa" / "models" / "registry.yaml")
+    epochs = {epoch.epoch_id: epoch for epoch in load_epochs(research)}
+    assert set(epochs) == {
+        "arb-fy2025-001-uniform-export-rate",
+        "arb-fy2025-002-export-led-margin-pressure",
+    }
+    assert epochs["arb-fy2025-001-uniform-export-rate"].status == "discarded"
+
+    challenger = registry.challengers[0]
+    promoted = promote_challenger(
+        registry,
+        challenger_id=challenger.model_id,
+        epoch=epochs[challenger.source_epoch],
+        approved_by="reviewer",
+        approved_at="2026-08-21",
+        objective=load_research_objective(research / "objective.yaml"),
+    )
+    assert promoted.champion.model_id == challenger.model_id
+    # The committed registry stays unpromoted; promotion needs a human.
+    assert registry.promotions == []
+
+
+def test_run_arb_regenerates_the_research_memory_it_claims_to(tmp_path):
+    """MEMORY.md credits run_arb.py with the objective and the epochs."""
+    import run_arb as runner
+
+    committed = EXAMPLE / ".fpa" / "research"
+    before = {path.name: path.read_text() for path in committed.glob("*.yaml")}
+    runner.run_arb(tmp_path)
+    written = {
+        path.name: path.read_text()
+        for path in (tmp_path / ".fpa" / "research").glob("*.yaml")
+    }
+    after = {path.name: path.read_text() for path in committed.glob("*.yaml")}
+    assert set(written) == {
+        "objective.yaml",
+        "arb-fy2025-001-uniform-export-rate.epoch.yaml",
+        "arb-fy2025-002-export-led-margin-pressure.epoch.yaml",
+    }
+    # The run stays inside output_dir, so re-running this guard cannot erase the
+    # evidence it just caught.
+    assert after == before
+    assert written == before  # the committed memory is exactly what the run writes
+
+
 def test_arb_pipeline_is_registered_for_agent_discovery():
     from pyfpa.memory.entrypoints import load_entrypoint_registry
 

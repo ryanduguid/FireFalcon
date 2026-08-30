@@ -3,9 +3,12 @@
 Phase A reproduces known actual-driver mechanics; Phase B is the independent
 FY2025 holdout; Phases C/D cover the forward forecast and sensitivity.
 """
+import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -172,3 +175,77 @@ def test_foxf_workspace_passes_agent_toolbelt_diagnostics():
     )
 
     assert result.returncode == 0, result.stdout
+
+
+# --------------------------------------------------------------------------- #
+# pull_edgar.py - a failed EDGAR fetch must abort, never blank a committed CSV.
+# All offline: `_curl` is replaced, so no test here touches the network.
+# --------------------------------------------------------------------------- #
+def _fake_concept_doc(tag: str) -> bytes:
+    """A well-formed companyconcept payload satisfying annual/instant/quarter."""
+    import pull_edgar as pe
+
+    rows = [
+        {"form": "10-K", "fy": fy, "start": pe.FY_END[fy - 1], "end": pe.FY_END[fy],
+         "val": 1_000_000 + fy}
+        for fy in pe.FYS
+    ]
+    rows += [{"end": pe.FY_END[fy], "val": 2_000_000 + fy} for fy in (2022, *pe.FYS)]
+    rows += [
+        {"start": "2025-01-01", "end": "2025-03-31", "val": 300_000},
+        {"start": "2026-01-01", "end": "2026-03-31", "val": 310_000},
+    ]
+    return json.dumps({"units": {"USD": rows}}).encode()
+
+
+def test_curl_uses_fail_so_an_http_error_body_is_never_parsed_as_data(monkeypatch):
+    import pull_edgar as pe
+
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen["argv"] = argv
+        return subprocess.CompletedProcess(argv, 22, b"", b"HTTP 403 from SEC")
+
+    # Replace pull_edgar's own name for the module, not stdlib subprocess.run,
+    # which other tests in this file call.
+    monkeypatch.setattr(pe, "subprocess", SimpleNamespace(run=fake_run))
+    with pytest.raises(RuntimeError, match="curl failed"):
+        pe._curl("https://data.sec.gov/whatever")
+    assert "--fail" in seen["argv"]
+
+
+def test_a_throttled_concept_raises_instead_of_blanking_the_row(monkeypatch):
+    import pull_edgar as pe
+
+    def fake_curl(url: str) -> bytes:
+        if "InventoryNet" in url:
+            raise RuntimeError(f"curl failed for {url}: HTTP 403")
+        return _fake_concept_doc(url)
+
+    monkeypatch.setattr(pe, "_curl", fake_curl)
+    with pytest.raises(RuntimeError, match="InventoryNet"):
+        pe.pull_balance_sheet()
+
+
+def test_main_leaves_committed_csvs_untouched_when_a_late_pull_fails(monkeypatch, tmp_path):
+    import pull_edgar as pe
+
+    data = tmp_path / "data"
+    data.mkdir()
+    for csv in sorted((EXAMPLE / "data").glob("*.csv")):
+        shutil.copy(csv, data / csv.name)
+    before = {p.name: p.read_bytes() for p in data.glob("*.csv")}
+
+    def fake_curl(url: str) -> bytes:
+        if "/Archives/" in url:  # segment footnote: last pull in the batch
+            raise RuntimeError(f"curl failed for {url}: HTTP 403")
+        return _fake_concept_doc(url)
+
+    monkeypatch.setattr(pe, "_curl", fake_curl)
+    monkeypatch.setattr(pe, "DATA", data)
+    with pytest.raises(RuntimeError, match="curl failed"):
+        pe.main()
+
+    assert {p.name: p.read_bytes() for p in data.glob("*.csv")} == before
+    assert not (data / "SOURCES.md").exists()

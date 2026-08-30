@@ -1,0 +1,50 @@
+schema_version: 1
+epoch_id: arb-fy2025-002-export-led-margin-pressure
+created: '2026-08-20'
+status: proposed
+hypothesis: Exports grow 16.4 percent, Australian aftermarket and OEM stay flat, and
+  EBITDA margin compresses 150bps on THB and tariff cost pressure known as a 2025
+  risk.
+champion_id: arb-flat-fy2024-run-rate
+challenger_id: arb-export-led-150bps
+memory_sources:
+- .fpa/business-profile.md
+- data/segments.csv
+- data/income_statement.csv
+- data/balance_sheet.csv
+- data/cash_flow.csv
+files_changed:
+- arb_model.py
+training_periods:
+- FY2024
+holdout_periods:
+- FY2025
+checks:
+- name: holdout separation
+  result: pass
+  details: Candidate uses FY2024 only; FY2025 is held out.
+- name: channel rollup
+  result: pass
+  details: Australian Aftermarket, Exports, and OEM sales roll to consolidated.
+evaluation:
+  champion_metrics:
+    revenue_error: 0.0504076312180714
+    gross_profit_error: 0.04234865822687008
+    ebitda_error: 0.009451358706930799
+  challenger_metrics:
+    revenue_error: 0.0011378000380845258
+    gross_profit_error: 0.009634227301213329
+    ebitda_error: 0.000749507263620789
+  per_metric_improvement:
+    revenue_error: 0.9774280201114347
+    gross_profit_error: 0.7725021829593542
+    ebitda_error: 0.9206984639075051
+  weighted_improvement: 0.8989314021046317
+  complexity_cost: 0.0010000000000000009
+  objective_gain: 0.8979314021046317
+  hard_checks_passed: true
+  regression_guard_passed: true
+  promotion_eligible: true
+notes: 'Working-capital days are reproduced in Phase A but not used as a holdout metric:
+  FY2025 AR barely moved while sales grew, and H2 destocking is a management action,
+  not a stable sales function.'

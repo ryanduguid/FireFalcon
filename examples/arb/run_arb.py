@@ -22,8 +22,10 @@ if str(HERE) not in sys.path:
 import arb_model as am
 from pyfpa.analysis.reconcile import reconcile
 from pyfpa.io.reporting import to_briefing_md
+from pyfpa.research import save_epoch, save_research_objective
 
 OUT = HERE / "output"
+RESEARCH = HERE / ".fpa" / "research"
 
 
 def phase_a() -> str:
@@ -145,12 +147,26 @@ def phase_d() -> str:
 
 
 def run_arb(output_dir: str | Path | None = None) -> dict:
+    """Run Phases A-D and return the FY2026 headline figures.
+
+    ``output_dir`` takes the four markdown files and the research memory
+    together, so a caller that redirects it writes nothing into the tracked
+    example. Omitting it keeps the committed layout: markdown under
+    ``output/``, memory under ``.fpa/research/``.
+    """
     out = Path(output_dir) if output_dir is not None else OUT
+    research = RESEARCH if output_dir is None else out / ".fpa" / "research"
     out.mkdir(parents=True, exist_ok=True)
     (out / "reconciliation.md").write_text(phase_a())
     (out / "historical-holdout.md").write_text(phase_b())
     (out / "forecast-briefing.md").write_text(phase_c())
     (out / "sensitivity.md").write_text(phase_d())
+    # Phase B's verdicts belong in company memory, not only in the markdown:
+    # the registry's challenger names its source epoch, and the research skill
+    # tells the next agent to read prior epochs before repeating a hypothesis.
+    save_research_objective(am.HOLDOUT_OBJECTIVE, research / "objective.yaml")
+    for epoch in am.historical_research_epochs():
+        save_epoch(epoch, research, overwrite=True)
     forecast, _ = am.build_forecast()
     return {
         "fy2026_revenue": round(float(forecast.iloc[:12]["revenue"].sum())),
