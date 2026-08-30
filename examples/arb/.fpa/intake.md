@@ -84,7 +84,7 @@ facts:
   alternatives: []
 - key: financing
   topic: finance_structure
-  question: What debt, leases, or other financing should the model include?
+  question: What debt, credit lines, covenants, or other financing is in place?
   answer: No borrowings at 30 June 2025. Finance expense is mainly leases. The
     demo does not put a term loan through the engine.
   status: inferred
@@ -93,23 +93,35 @@ facts:
   sources:
   - data/SOURCES.md
   alternatives: []
-- key: decisions
-  topic: decisions
-  question: Which decisions should the forecast and research loop support?
-  answer: Export-led growth versus Australian aftermarket softness, and cost
-    pressure from the Thai Baht and US tariffs.
+- key: data_sources
+  topic: finance_structure
+  question: Which systems and files contain the financial and operating actuals?
+  answer: Committed CSV extracts from the ASX Appendix 4E PDF. No live scrape.
+  status: inferred
+  confidence: 0.95
+  source_type: local_file
+  sources:
+  - data/SOURCES.md
+  alternatives: []
+- key: planning_cadence
+  topic: planning
+  question: How often do you close, reforecast, report, and make planning decisions?
+  answer: The public evidence supports half-yearly ASX reporting (Appendix 4D and
+    4E) against a 30 June year end; ARB's internal close and reforecast cadence is
+    not public.
   status: inferred
   confidence: 0.85
   source_type: local_file
   sources:
   - data/SOURCES.md
   alternatives: []
-- key: systems
-  topic: data
-  question: Which systems, exports, or folders are available as source data?
-  answer: Committed CSV extracts from the ASX Appendix 4E PDF. No live scrape.
+- key: cfo_priorities
+  topic: planning
+  question: Which decisions, risks, or questions matter most to the CFO right now?
+  answer: Export-led growth versus Australian aftermarket softness, and cost
+    pressure from the Thai Baht and US tariffs.
   status: inferred
-  confidence: 0.95
+  confidence: 0.85
   source_type: local_file
   sources:
   - data/SOURCES.md

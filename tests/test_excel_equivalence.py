@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 pytest.importorskip("formulas")
@@ -8,9 +10,11 @@ from pyfpa.excel.model_workbook import model_to_excel
 from pyfpa.excel.verify import verify_workbook
 from pyfpa.models.cashflow import cashflow_from_config
 
+REPO = Path(__file__).resolve().parents[1]
+
 
 def test_ridgeline_workbook_reproduces_engine(tmp_path):
-    cfg = load_config("examples/ridgeline/config.yaml")
+    cfg = load_config(REPO / "examples" / "ridgeline" / "config.yaml")
     path = tmp_path / "ridgeline.xlsx"
     model_to_excel(cfg, path)
     report = verify_workbook(path, cashflow_from_config(cfg))

@@ -103,7 +103,7 @@ Only when recurring access is worth it:
 ```bash
 python3 -m pyfpa.cli connector-scaffold <company-root> --name xero-au \
   --source-id xero-au --description "Monthly Xero P&L + BS pull" \
-  --auth-method oauth2-pkce --fixture data/xero_pl_jul2026.csv
+  --auth-method host_environment --fixture data/xero_pl_jul2026.csv
 python3 -m pyfpa.cli connector-validate <company-root> --name xero-au
 ```
 

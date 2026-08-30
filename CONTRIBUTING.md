@@ -11,8 +11,14 @@ kind; this is a side-of-the-desk project.
 git clone https://github.com/JeffBrines/openfpa
 cd openfpa
 pip install -e ".[dev]"
-pytest -q          # the full test suite should be green
+pytest -q          # the merge gate, and it should be green
+pytest -m network  # the live checks, which fetch RBA CSVs over the internet
 ```
+
+`pytest.ini` deselects the `network` marker by default, so a Reserve Bank outage or a
+published layout change cannot fail a branch that did not cause it. Run `pytest -m
+network` when you touch `pyfpa/au/drivers.py` or refresh the RBA fixtures under
+`tests/fixtures/`.
 
 The distribution is `openfpa`; the importable package is `pyfpa` (`import pyfpa`).
 
