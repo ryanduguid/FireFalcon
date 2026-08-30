@@ -1,11 +1,11 @@
 import json
-import subprocess
 import sys
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
+from pyfpa.au import drivers
 from pyfpa.au.drivers import (
     DriverSeries,
     fetch_abs_series,
@@ -15,7 +15,20 @@ from pyfpa.au.drivers import (
 )
 
 REPO = Path(__file__).resolve().parent.parent
-SCRIPT = REPO / "scripts" / "au_drivers_snapshot.py"
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
+sys.path.insert(0, str(REPO / "scripts"))
+import au_drivers_snapshot as snapshot  # noqa: E402
+
+
+def _sample(url: str, headers=None, timeout: int = 60) -> bytes:
+    """Serve the committed RBA table samples in place of a live download.
+
+    Patched over `drivers._fetch`, so the script under test exercises the real
+    parser and the real save path with no network dependency.
+    """
+    table = url.rsplit("/", 1)[-1].replace("-data.csv", "")
+    return (FIXTURES / f"rba_{table}_sample.csv").read_bytes()
 
 
 def _series(name="cash_rate_target", data=None, **overrides):
@@ -81,15 +94,41 @@ def test_fetch_abs_unknown_dataflow_rejected(monkeypatch):
         fetch_abs_series("made_up")
 
 
-def test_snapshot_script_rba_only(tmp_path):
-    result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--out", str(tmp_path), "--rba-only"],
-        capture_output=True,
-        text=True,
-        cwd=REPO,
-    )
-    assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
+def test_fetch_rba_parses_the_committed_f1_sample(monkeypatch):
+    monkeypatch.setattr(drivers, "_fetch", _sample)
+    series = fetch_rba_series("cash_rate_target")
+    assert series.series_id == "FIRMMCRTD"
+    assert series.units == "Per cent"
+    assert series.source_url.endswith("f1-data.csv")
+    # The last dated row in a month wins; blank cells are skipped, never zeroed.
+    assert series.data["2026-02"] == 3.85  # 27-Feb rise, not the 02-Feb 3.60
+    assert series.data["2026-08"] == 4.35  # 27-Aug, since 28-Aug is blank
+    assert "2026-04" not in series.data
+
+
+def test_fetch_rba_selects_the_named_column_of_a_shared_table(monkeypatch):
+    monkeypatch.setattr(drivers, "_fetch", _sample)
+    aud_usd = fetch_rba_series("aud_usd")
+    twi = fetch_rba_series("twi")
+    # Both read f11.1; only the Series ID row separates them.
+    assert (aud_usd.series_id, aud_usd.units) == ("FXRUSD", "USD")
+    assert (twi.series_id, twi.units) == ("FXRTWI", "Index")
+    assert aud_usd.data["2026-08"] == 0.7196
+    assert twi.data["2026-08"] == 66.40
+
+
+def _run_snapshot(monkeypatch, capsys, tmp_path, *args) -> tuple[int, dict]:
+    """Drive the snapshot script in-process so no test shells out to the RBA."""
+    monkeypatch.setattr(sys, "argv", ["au_drivers_snapshot.py", "--out", str(tmp_path), *args])
+    code = snapshot.main()
+    return code, json.loads(capsys.readouterr().out)
+
+
+def test_snapshot_script_rba_only(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(drivers, "_fetch", _sample)
+    code, report = _run_snapshot(monkeypatch, capsys, tmp_path, "--rba-only")
+    assert code == 0, report
+    assert not report["errors"]
     assert len(report["saved"]) == 3  # cash rate, aud/usd, twi
     for path in report["saved"]:
         loaded = load_snapshot(path)
@@ -97,16 +136,33 @@ def test_snapshot_script_rba_only(tmp_path):
         assert loaded.source_url.startswith("https://www.rba.gov.au")
 
 
-def test_snapshot_script_abs_skipped_without_key(tmp_path, monkeypatch):
+def test_snapshot_script_abs_skipped_without_key(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("ABS_API_KEY", raising=False)
-    env = {k: v for k, v in __import__("os").environ.items() if k != "ABS_API_KEY"}
-    result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--out", str(tmp_path)],
-        capture_output=True,
-        text=True,
-        cwd=REPO,
-        env=env,
-    )
-    assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
+    monkeypatch.setattr(drivers, "_fetch", _sample)
+    code, report = _run_snapshot(monkeypatch, capsys, tmp_path)
+    assert code == 0, report
     assert any(k.startswith("abs:") for k in report["skipped"])
+
+
+def test_snapshot_script_reports_a_failed_fetch_as_exit_1(tmp_path, monkeypatch, capsys):
+    def unreachable(url, headers=None, timeout: int = 60) -> bytes:
+        raise OSError("network unreachable")
+
+    monkeypatch.setattr(drivers, "_fetch", unreachable)
+    code, report = _run_snapshot(monkeypatch, capsys, tmp_path, "--rba-only")
+    assert code == 1
+    assert set(report["errors"]) == {"rba:cash_rate_target", "rba:aud_usd", "rba:twi"}
+    assert not report["saved"]
+
+
+@pytest.mark.network
+def test_live_rba_table_still_matches_the_committed_sample_layout():
+    """Opt-in (`pytest -m network`): catches an RBA layout change.
+
+    Deliberately outside the merge gate - an RBA outage must not fail an
+    unrelated PR. Run it when refreshing the samples above.
+    """
+    series = fetch_rba_series("cash_rate_target")
+    assert series.series_id == "FIRMMCRTD"
+    assert series.units == "Per cent"
+    assert len(series.data) > 100

@@ -6,6 +6,8 @@ docs/demo/*.xlsx
 examples/*/output/*.xlsx
 dist/
 build/
+.coverage
+coverage.xml
 
 # Credentials must never be committed.
 .env
