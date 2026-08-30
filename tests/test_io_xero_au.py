@@ -55,6 +55,17 @@ def test_by_tracking_groups_options():
     assert splits["(untracked)"]["Rent"] == pytest.approx(-6500.0)
 
 
+def test_unmapped_tracking_subtracts_the_allowed_options():
+    report = read_xero_report(FIXTURE_PL)
+    # Nothing mapped yet: every option in the file is unmapped.
+    assert report.unmapped_tracking() == ["North", "South"]
+    # Mapped options drop out; the argument must actually be read.
+    assert report.unmapped_tracking(["North"]) == ["South"]
+    assert report.unmapped_tracking(["North", "South"]) == []
+    # An allowed option that never appears in the file is not invented.
+    assert report.unmapped_tracking(["North", "South", "West"]) == []
+
+
 def test_from_xero_mirrors_adapter_shape():
     totals = from_xero()
     assert totals["Sales - Domestic"] == pytest.approx(99000.0)

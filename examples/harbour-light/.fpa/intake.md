@@ -83,7 +83,7 @@ facts:
   alternatives: []
 - key: financing
   topic: finance_structure
-  question: What debt, leases, or other financing should the model include?
+  question: What debt, credit lines, covenants, or other financing is in place?
   answer: The Xero balance sheet has a $60,000 business loan with no interest
     expense in the P&L. The demo leaves it off the engine rather than invent a
     rate.
@@ -93,20 +93,9 @@ facts:
   sources:
   - data/xero_bs.csv
   alternatives: []
-- key: decisions
-  topic: decisions
-  question: Which decisions should the forecast and research loop support?
-  answer: Show that Xero mapping, AU payroll, and BAS cash timing compose on one
-    synthetic company without inventing client data.
-  status: inferred
-  confidence: 0.9
-  source_type: local_file
-  sources:
-  - .fpa/decisions/initial-model-architecture.md
-  alternatives: []
-- key: systems
-  topic: data
-  question: Which systems, exports, or folders are available as source data?
+- key: data_sources
+  topic: finance_structure
+  question: Which systems and files contain the financial and operating actuals?
   answer: Fixture-backed Xero Australia P&L and balance sheet CSVs. No live OAuth.
   status: inferred
   confidence: 0.95
@@ -114,6 +103,29 @@ facts:
   sources:
   - data/xero_pl.csv
   - data/xero_bs.csv
+  alternatives: []
+- key: planning_cadence
+  topic: planning
+  question: How often do you close, reforecast, report, and make planning decisions?
+  answer: Monthly close off the Xero export, quarterly BAS lodgement, and a 13-week
+    cash review rebuilt whenever a BAS quarter rolls into the window.
+  status: inferred
+  confidence: 0.9
+  source_type: local_file
+  sources:
+  - harbour_model.py
+  - .fpa/decisions/initial-model-architecture.md
+  alternatives: []
+- key: cfo_priorities
+  topic: planning
+  question: Which decisions, risks, or questions matter most to the CFO right now?
+  answer: Show that Xero mapping, AU payroll, and BAS cash timing compose on one
+    synthetic company without inventing client data.
+  status: inferred
+  confidence: 0.9
+  source_type: local_file
+  sources:
+  - .fpa/decisions/initial-model-architecture.md
   alternatives: []
 ---
 Synthetic example. Not a real entity.
