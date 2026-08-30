@@ -1,5 +1,6 @@
 """Repository contract for the risk-based changed-line coverage pilot."""
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -25,3 +26,22 @@ def test_changed_line_coverage_is_scoped_and_fail_closed() -> None:
     assert "--compare-branch=origin/main" in workflow
     assert "--branch-coverage" in workflow
     assert "--fail-under=100" in workflow
+
+
+def test_no_tracked_file_is_covered_by_an_ignore_rule() -> None:
+    """Generated artifacts stay out of the index.
+
+    A committed file that .gitignore also claims is rewritten by every
+    documented example run, so `git add -A` sweeps an unreviewable binary diff
+    into the next commit.
+    """
+    if not (ROOT / ".git").exists():
+        pytest.skip("not a git checkout")
+    result = subprocess.run(
+        ["git", "ls-files", "--cached", "--ignored", "--exclude-standard"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.split() == []

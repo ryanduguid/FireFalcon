@@ -22,6 +22,7 @@ are never committed. See docs/recipes/xero-au.md.
 from __future__ import annotations
 
 import csv
+from collections.abc import Iterable
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -63,11 +64,15 @@ class XeroReport(BaseModel):
             splits[key][row.account] = splits[key].get(row.account, 0.0) + row.amount
         return splits
 
-    def unmapped_tracking(self, category: str = "") -> list[str]:
-        """Tracking options present but not named in `category`'s allowed list."""
-        # Caller supplies the allowed options via generate-time config;
-        # here we simply return the options that carry no category.
-        return sorted({r.tracking_option for r in self.rows} - {""})
+    def unmapped_tracking(self, allowed: Iterable[str] = ()) -> list[str]:
+        """Tracking options present in the report but not in `allowed`.
+
+        `allowed` is the tracking category's mapped option list, supplied
+        by the caller from generate-time config; the default (nothing
+        mapped yet) returns every option in the file. Untracked rows are
+        not options - surface those from ``by_tracking()['(untracked)']``.
+        """
+        return sorted({r.tracking_option for r in self.rows} - set(allowed) - {""})
 
 
 def read_xero_report(path: str | Path) -> XeroReport:
