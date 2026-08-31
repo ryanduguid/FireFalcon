@@ -29,7 +29,7 @@ def test_all_matches_public_api():
         "Override", "Correction", "load_corrections", "save_correction", "apply_corrections",
         "apply_override", "Experiment", "ExperimentCheck", "ExperimentDecision",
         "load_experiment", "load_experiments", "save_experiment",
-        "initialize_workspace", "workspace_path",
+        "Workspace", "initialize_workspace", "workspace_path",
         "Intake", "IntakeFact", "IntakeQuestion", "intake_ready", "load_intake",
         "next_intake_questions", "record_intake_fact", "save_intake",
         "ArchitectureProposal", "render_architecture_proposal", "render_business_profile",

@@ -13,6 +13,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from pyfpa.memory.lineage import MappingRegistry, reconcile_account_table
+from pyfpa.memory.workspace import Workspace
 
 
 ConnectorAuth = Literal["none", "host_environment", "mcp"]
@@ -48,36 +49,6 @@ def _is_link_or_reparse(path_stat) -> bool:
     )
 
 
-def _canonical_company_root(company_root: str | Path) -> Path:
-    root = Path(company_root).resolve(strict=True)
-    if not root.is_dir():
-        raise NotADirectoryError(f"company root is not a directory: {root}")
-    return root
-
-
-def _assert_safe_existing_chain(root: Path, target: Path) -> None:
-    try:
-        relative = target.relative_to(root)
-    except ValueError as error:
-        raise ValueError(f"connector path escapes company root: {target}") from error
-
-    current = root
-    for part in relative.parts:
-        current /= part
-        current_stat = _lstat(current)
-        if current_stat is None:
-            break
-        if _is_link_or_reparse(current_stat):
-            raise ValueError(
-                "connector workspace paths must not contain symlinks or "
-                f"reparse points: {current}"
-            )
-        if current != target and not stat.S_ISDIR(current_stat.st_mode):
-            raise NotADirectoryError(
-                f"connector workspace ancestor is not a directory: {current}"
-            )
-
-
 def _ensure_plain_directory(root: Path, directory: Path) -> None:
     relative = directory.relative_to(root)
     current = root
@@ -101,8 +72,8 @@ def _ensure_plain_directory(root: Path, directory: Path) -> None:
             )
 
 
-def _assert_plain_tree(root: Path, tree: Path) -> None:
-    _assert_safe_existing_chain(root, tree)
+def _assert_plain_tree(workspace: Workspace, tree: Path) -> None:
+    workspace.assert_safe_existing_chain(tree)
     pending = [tree]
     while pending:
         current = pending.pop()
@@ -116,26 +87,27 @@ def _assert_plain_tree(root: Path, tree: Path) -> None:
             pending.extend(current.iterdir())
 
 
-def _remove_verified_tree(root: Path, tree: Path) -> None:
-    _assert_plain_tree(root, tree)
+def _remove_verified_tree(workspace: Workspace, tree: Path) -> None:
+    _assert_plain_tree(workspace, tree)
     shutil.rmtree(tree)
 
 
 def _replace_generated_tree(
-    root: Path,
+    workspace: Workspace,
     bundle: Path,
     *,
     overwrite: bool,
     build_fn: Callable[[Path], None],
 ) -> None:
-    _assert_safe_existing_chain(root, bundle)
+    root = workspace.root
+    workspace.assert_safe_existing_chain(bundle)
     existing_bundle = _lstat(bundle)
     if existing_bundle is not None:
         if not stat.S_ISDIR(existing_bundle.st_mode):
             raise NotADirectoryError(f"connector bundle is not a directory: {bundle}")
         if not overwrite:
             raise FileExistsError(f"connector bundle already exists: {bundle}")
-        _assert_plain_tree(root, bundle)
+        _assert_plain_tree(workspace, bundle)
 
     generated = bundle.parent
     _ensure_plain_directory(root, generated)
@@ -145,9 +117,9 @@ def _replace_generated_tree(
     installed = False
     try:
         build_fn(staging)
-        _assert_plain_tree(root, staging)
+        _assert_plain_tree(workspace, staging)
 
-        _assert_safe_existing_chain(root, bundle)
+        workspace.assert_safe_existing_chain(bundle)
         existing_bundle = _lstat(bundle)
         backup = None
         if existing_bundle is not None:
@@ -157,7 +129,7 @@ def _replace_generated_tree(
                 raise NotADirectoryError(
                     f"connector bundle is not a directory: {bundle}"
                 )
-            _assert_plain_tree(root, bundle)
+            _assert_plain_tree(workspace, bundle)
             backup = generated / f".{bundle.name}.backup-{uuid4().hex}"
             bundle.rename(backup)
 
@@ -170,10 +142,10 @@ def _replace_generated_tree(
         installed = True
 
         if backup is not None:
-            _remove_verified_tree(root, backup)
+            _remove_verified_tree(workspace, backup)
     finally:
         if not installed and _lstat(staging) is not None:
-            _remove_verified_tree(root, staging)
+            _remove_verified_tree(workspace, staging)
 
 
 class ConnectorManifest(BaseModel):
@@ -224,7 +196,7 @@ class ConnectorManifest(BaseModel):
 
 
 def connector_generated_root(company_root: str | Path) -> Path:
-    return Path(company_root) / "connectors" / "generated"
+    return Workspace.open(company_root).generated_path("connectors")
 
 
 def connector_bundle_path(company_root: str | Path, name: str) -> Path:
@@ -401,8 +373,8 @@ def scaffold_connector_bundle(
     mappings: MappingRegistry,
     overwrite: bool = False,
 ) -> tuple[ConnectorManifest, dict]:
-    company_root = _canonical_company_root(company_root)
-    bundle = connector_bundle_path(company_root, name)
+    workspace = Workspace.open(company_root).require_root()
+    bundle = connector_bundle_path(workspace.root, name)
     fixture = Path(fixture)
     if not fixture.exists():
         raise FileNotFoundError(f"connector fixture not found: {fixture}")
@@ -448,7 +420,7 @@ def scaffold_connector_bundle(
         (staging / "README.md").write_text(_readme(manifest))
 
     _replace_generated_tree(
-        company_root,
+        workspace,
         bundle,
         overwrite=overwrite,
         build_fn=build_bundle,
@@ -466,22 +438,22 @@ def validate_connector_bundle(
     # Retained for callers of the schema-v1 API. The closed in-process adapter
     # does not start a process whose runtime can be bounded by this value.
     del timeout
-    company_root = _canonical_company_root(company_root)
-    bundle = connector_bundle_path(company_root, name)
-    _assert_safe_existing_chain(company_root, bundle)
+    workspace = Workspace.open(company_root).require_root()
+    bundle = connector_bundle_path(workspace.root, name)
+    workspace.assert_safe_existing_chain(bundle)
     bundle_stat = _lstat(bundle)
     if bundle_stat is None:
         raise FileNotFoundError(f"connector bundle not found: {bundle}")
     if not stat.S_ISDIR(bundle_stat.st_mode):
         raise NotADirectoryError(f"connector bundle is not a directory: {bundle}")
-    _assert_safe_existing_chain(company_root, bundle / "connector.yaml")
+    workspace.assert_safe_existing_chain(bundle / "connector.yaml")
     manifest = load_connector_manifest(bundle)
     if manifest.name != name:
         raise ValueError(
             f"connector directory {name!r} contains manifest for {manifest.name!r}"
         )
     fixture_path = bundle / manifest.fixture_path
-    _assert_safe_existing_chain(company_root, fixture_path)
+    workspace.assert_safe_existing_chain(fixture_path)
     if _lstat(fixture_path) is None:
         raise FileNotFoundError(f"connector fixture not found: {fixture_path}")
     fixture = fixture_path.resolve(strict=True)
