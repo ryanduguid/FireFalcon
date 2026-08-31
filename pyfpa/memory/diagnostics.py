@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from pyfpa.memory.workspace import WORKSPACE_DIRS, workspace_path
+from pyfpa.memory.workspace import WORKSPACE_DIRS, Workspace
 
 
 class WorkspaceReport(BaseModel):
@@ -239,10 +239,11 @@ _CHECKS: tuple[tuple[str, Callable[[Path, Path, list[dict[str, str]]], None]], .
 )
 
 
-def validate_workspace(root: Path) -> WorkspaceReport:
+def _validate_workspace(opened: Workspace) -> WorkspaceReport:
     """Run all workspace contract checks and return a typed report.
     Pure: reads files, does not write anything."""
-    workspace = workspace_path(root)
+    root = opened.root
+    workspace = opened.memory
     checks: list[dict[str, str]] = []
 
     if not workspace.is_dir():
@@ -261,3 +262,8 @@ def validate_workspace(root: Path) -> WorkspaceReport:
         _run_check(name, fn, root, workspace, checks)
 
     return _report(checks)
+
+
+def validate_workspace(root: str | Path) -> WorkspaceReport:
+    """Compatibility wrapper around :meth:`Workspace.validate`."""
+    return Workspace.open(root).validate()

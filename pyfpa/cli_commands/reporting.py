@@ -5,16 +5,16 @@ import argparse
 from openpyxl import load_workbook
 
 from pyfpa.cli_helpers import _failure, _root, _success
-from pyfpa.memory.workspace import workspace_path
+from pyfpa.memory.workspace import Workspace
 
 
 def command_model_export(args: argparse.Namespace) -> int:
     from pyfpa.config.loader import load_config
     from pyfpa.excel.model_workbook import model_to_excel
 
-    root = _root(args.path)
-    workspace = workspace_path(root)
-    if not workspace.is_dir():
+    opened = Workspace.open(args.path)
+    root = opened.root
+    if not opened.initialized:
         return _failure(
             "model-export",
             root,

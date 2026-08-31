@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import statistics
-from pathlib import Path
 
 from pydantic import BaseModel
 
 from pyfpa.memory.corrections import load_corrections
+from pyfpa.memory.workspace import Workspace
 from pyfpa.portfolio.manifest import ClientRef, Portfolio, clients_of_type
 from pyfpa.portfolio.recover import best_snapshot
 
@@ -45,7 +45,8 @@ def client_driver_value(client: ClientRef, driver: str) -> float | None:
     snap = best_snapshot(client.path)
     if snap is None:
         return None
-    for c in load_corrections(Path(client.path) / ".fpa" / "corrections"):
+    workspace = Workspace.open(client.path)
+    for c in load_corrections(workspace.memory / "corrections"):
         if c.status == "applied" and c.type == "parametric" and c.override and c.override.path == driver:
             return c.override.value
     return _get_by_path(snap.assumptions, driver)
@@ -84,7 +85,7 @@ def find_recurring_skills(portfolio: Portfolio, business_type: str, *,
     clients = clients_of_type(portfolio, business_type)
     by_name: dict[str, list[tuple[str, str]]] = {}
     for c in clients:
-        generated = Path(c.path) / "skills" / "generated"
+        generated = Workspace.open(c.path).generated_path("skills")
         if not generated.exists():
             continue
         for d in sorted(generated.iterdir()):

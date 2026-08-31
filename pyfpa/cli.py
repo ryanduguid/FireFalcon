@@ -31,7 +31,6 @@ from pyfpa.cli_commands.lineage import (
     command_source_profile,
     command_source_register,
 )
-from pyfpa.memory.diagnostics import validate_workspace
 from pyfpa.memory.entrypoints import (
     CompanyEntrypoint,
     load_entrypoint_registry,
@@ -40,13 +39,12 @@ from pyfpa.memory.entrypoints import (
 )
 from pyfpa.memory.inspection import inspect_data_files
 from pyfpa.memory.intake import (
-    intake_ready,
     load_intake,
     next_intake_questions,
     record_intake_fact,
     save_intake,
 )
-from pyfpa.memory.workspace import WORKSPACE_DIRS, initialize_workspace, workspace_path
+from pyfpa.memory.workspace import WORKSPACE_DIRS, Workspace, initialize_workspace
 from pyfpa.research.registry import load_model_registry
 
 
@@ -59,9 +57,10 @@ def _workspace_counts(workspace: Path) -> dict[str, int]:
 
 
 def command_init(args: Any) -> int:
-    root = _root(args.path)
+    opened = Workspace.open(args.path)
+    root = opened.root
     root.mkdir(parents=True, exist_ok=True)
-    existed = workspace_path(root).exists()
+    existed = opened.memory.exists()
     business_name = args.business_name or root.name or "Company"
     workspace = initialize_workspace(root, business_name=business_name)
     return _success(
@@ -97,9 +96,10 @@ def command_inspect_data(args: Any) -> int:
 
 
 def command_status(args: Any) -> int:
-    root = _root(args.path)
-    workspace = workspace_path(root)
-    if not workspace.is_dir():
+    opened = Workspace.open(args.path)
+    root = opened.root
+    workspace = opened.memory
+    if not opened.initialized:
         return _success(
             "status",
             root,
@@ -113,13 +113,13 @@ def command_status(args: Any) -> int:
         from pyfpa.memory.connectors import load_connector_manifests
         from pyfpa.memory.lineage import load_mapping_registry, load_source_registry
 
-        intake = load_intake(workspace / "intake.md")
+        intake = load_intake(opened.intake_path)
         registry = load_model_registry(workspace / "models" / "registry.yaml")
         entrypoints = load_entrypoint_registry(
-            workspace / "models" / "entrypoints.yaml"
+            opened.entrypoint_registry_path
         )
-        sources = load_source_registry(workspace / "sources" / "registry.yaml")
-        mappings = load_mapping_registry(workspace / "mappings" / "registry.yaml")
+        sources = load_source_registry(opened.source_registry_path)
+        mappings = load_mapping_registry(opened.mapping_registry_path)
         connectors = load_connector_manifests(root)
     except Exception as exc:
         return _failure("status", root, "invalid_workspace", str(exc))
@@ -134,7 +134,7 @@ def command_status(args: Any) -> int:
             "initialized": True,
             "workspace": str(workspace),
             "business_name": intake.business_name,
-            "intake_ready": intake_ready(intake),
+            "intake_ready": opened.is_ready(),
             "fact_count": len(intake.facts),
             "facts_by_status": facts_by_status,
             "next_question_count": len(questions),
@@ -158,8 +158,9 @@ def command_status(args: Any) -> int:
 
 
 def command_intake_next(args: Any) -> int:
-    root = _root(args.path)
-    intake_path = workspace_path(root) / "intake.md"
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    intake_path = workspace.intake_path
     if not intake_path.exists():
         return _failure(
             "intake-next",
@@ -177,7 +178,7 @@ def command_intake_next(args: Any) -> int:
         root,
         {
             "business_name": intake.business_name,
-            "intake_ready": intake_ready(intake),
+            "intake_ready": workspace.is_ready(),
             "questions": [question.model_dump() for question in questions],
             "question_count": len(questions),
             "writes_performed": False,
@@ -186,8 +187,9 @@ def command_intake_next(args: Any) -> int:
 
 
 def command_intake_record(args: Any) -> int:
-    root = _root(args.path)
-    intake_path = workspace_path(root) / "intake.md"
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    intake_path = workspace.intake_path
     if not intake_path.exists():
         return _failure(
             "intake-record",
@@ -217,16 +219,12 @@ def command_intake_record(args: Any) -> int:
         root,
         {
             "fact": fact.model_dump(),
-            "intake_ready": intake_ready(intake),
+            "intake_ready": workspace.is_ready(),
             "next_question_count": len(questions),
             "next_question_topic": questions[0].topic if questions else None,
             "intake_path": str(intake_path),
         },
     )
-
-
-def _entrypoint_registry_path(root: Path) -> Path:
-    return workspace_path(root) / "models" / "entrypoints.yaml"
 
 
 def _command_from_json(value: str) -> list[str]:
@@ -241,9 +239,10 @@ def _command_from_json(value: str) -> list[str]:
 
 
 def command_entrypoint_register(args: Any) -> int:
-    root = _root(args.path)
-    registry_path = _entrypoint_registry_path(root)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    registry_path = workspace.entrypoint_registry_path
+    if not workspace.initialized:
         return _failure(
             "entrypoint-register",
             root,
@@ -285,9 +284,10 @@ def command_entrypoint_register(args: Any) -> int:
 
 
 def command_entrypoint_list(args: Any) -> int:
-    root = _root(args.path)
-    registry_path = _entrypoint_registry_path(root)
-    if not workspace_path(root).is_dir():
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    registry_path = workspace.entrypoint_registry_path
+    if not workspace.initialized:
         return _failure(
             "entrypoint-list",
             root,
@@ -315,8 +315,9 @@ def command_entrypoint_list(args: Any) -> int:
 
 
 def command_doctor(args: Any) -> int:
-    root = _root(args.path)
-    report = validate_workspace(root)
+    workspace = Workspace.open(args.path)
+    root = workspace.root
+    report = workspace.validate()
     payload = {
         "healthy": report.healthy,
         "checks": report.checks,

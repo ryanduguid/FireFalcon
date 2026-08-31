@@ -6,7 +6,7 @@ from pyfpa.memory.experiments import (
     Experiment, ExperimentCheck, ExperimentDecision,
     load_experiment, load_experiments, save_experiment,
 )
-from pyfpa.memory.workspace import initialize_workspace, workspace_path
+from pyfpa.memory.workspace import Workspace, initialize_workspace, workspace_path
 from pyfpa.memory.intake import (
     Intake, IntakeFact, IntakeQuestion, intake_ready, load_intake,
     next_intake_questions, record_intake_fact, save_intake,
@@ -40,7 +40,7 @@ __all__ = [
     "Override", "Correction", "load_corrections", "save_correction", "apply_corrections",
     "apply_override", "Experiment", "ExperimentCheck", "ExperimentDecision",
     "load_experiment", "load_experiments", "save_experiment",
-    "initialize_workspace", "workspace_path",
+    "Workspace", "initialize_workspace", "workspace_path",
     "Intake", "IntakeFact", "IntakeQuestion", "intake_ready", "load_intake",
     "next_intake_questions", "record_intake_fact", "save_intake",
     "ArchitectureProposal", "render_architecture_proposal", "render_business_profile",
