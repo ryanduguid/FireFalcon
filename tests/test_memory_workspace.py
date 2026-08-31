@@ -88,6 +88,30 @@ def test_workspace_rejects_unknown_or_escaping_generated_paths(tmp_path):
         workspace.assert_safe_existing_chain(tmp_path.parent / "outside")
 
 
+def test_workspace_require_root_rejects_a_root_that_is_not_a_directory(tmp_path):
+    present = tmp_path / "company"
+    present.mkdir()
+    assert Workspace.open(present).require_root().root == present.resolve()
+
+    missing = tmp_path / "absent"
+    with pytest.raises(NotADirectoryError, match="company root is not a directory"):
+        Workspace.open(missing).require_root()
+
+    file_root = tmp_path / "company.txt"
+    file_root.write_text("a file where a company root must be", encoding="utf-8")
+    with pytest.raises(NotADirectoryError, match="company root is not a directory"):
+        Workspace.open(file_root).require_root()
+
+
+def test_workspace_rejects_a_chain_whose_ancestor_is_not_a_directory(tmp_path):
+    workspace = Workspace.open(tmp_path)
+    blocker = tmp_path / "connectors"
+    blocker.write_text("a file where a directory must be", encoding="utf-8")
+
+    with pytest.raises(NotADirectoryError, match="ancestor is not a directory"):
+        workspace.assert_safe_existing_chain(blocker / "generated" / "thing.json")
+
+
 def test_workspace_is_the_only_internal_location_seam():
     root = Path(__file__).resolve().parents[1]
     compatibility_surfaces = {
