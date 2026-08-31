@@ -1,0 +1,19 @@
+﻿F11.1  EXCHANGE RATES
+Title,A$1=USD,Trade-weighted Index May 1970 = 100,A$1=CNY
+Description,AUD/USD Exchange Rate; see notes for further detail.,Australian Dollar Trade-weighted Index,AUD/CNY Exchange Rate
+Frequency,Daily,Daily,Daily
+Type,Indicative,Indicative,Indicative
+Units,USD,Index,CNY
+,,,
+,,,
+Source,WM/Reuters,RBA,RBA
+Publication date,28-Aug-2026,28-Aug-2026,28-Aug-2026
+Series ID,FXRUSD,FXRTWI,FXRCR
+02-Feb-2026,0.6942,64.20,4.8267
+27-Feb-2026,0.7126,65.50,4.8851
+02-Mar-2026,0.7094,65.40,4.8746
+31-Mar-2026,0.6845,64.30,4.7298
+30-Jun-2026,0.6869,64.60,4.6647
+31-Jul-2026,0.7030,65.50,4.7435
+27-Aug-2026,0.7183,66.30,4.8276
+28-Aug-2026,0.7196,66.40,4.8367

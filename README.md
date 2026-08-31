@@ -25,14 +25,13 @@ Harbour Light (synthetic) and ARB Corporation (ASX: ARB).
 **Package lifecycle:** source-only. Install from this repository; the `openfpa`
 distribution is not published to PyPI.
 
-**openfpa is an agent-native FP&A workbench.** It gives an AI coding agent a
+**openfpa is an FP&A workbench an AI coding agent can run.** It gives the agent a
 tested finance kernel, an operating contract, durable company memory, and a
 research loop for building the FP&A system that fits one company.
 
-If Codex or Claude Code is the reasoning engine, openfpa is the FP&A toolbelt it
-straps on. The agent still thinks, asks questions, writes code, and makes
-judgments. openfpa gives it the finance-specific tools, memory, checks, and
-working method required to do that work well.
+When Codex or Claude Code is doing the reasoning, it still asks questions, writes
+code, and makes judgments. openfpa gives it the finance-specific tools, memory,
+checks, and working method required to do that work well.
 
 It is not a fixed FP&A application. It is not a catalog of prebuilt connectors.
 It is not a universal financial model.
@@ -49,7 +48,7 @@ The intended workflow is:
 
 The company workspace is the product. The Python package is the stable kernel
 inside it. The human points the agent toward the relevant data and business
-context. The agent uses the toolbelt to learn the company, ask the right
+context. The agent uses those tools to learn the company, ask the right
 questions, build the right FP&A system, and improve it as actual outcomes arrive.
 
 ## Why this exists

@@ -34,61 +34,67 @@ SEG_REPORT = "R106.htm"  # "Segment Information - Summary of Segment Information
 
 
 def _curl(url: str) -> bytes:
+    # --fail turns an HTTP 4xx/5xx (SEC throttling returns 403) into a non-zero
+    # exit instead of an error body that would parse as missing data. -S keeps
+    # the reason on stderr.
     result = subprocess.run(
-        ["curl", "-s", "-H", f"User-Agent: {UA}", url], capture_output=True
+        ["curl", "-sS", "--fail", "-H", f"User-Agent: {UA}", url], capture_output=True
     )
     if result.returncode != 0:
         raise RuntimeError(f"curl failed for {url}: {result.stderr.decode()[:200]}")
     return result.stdout
 
 
-def _concept(tag: str) -> list[dict] | None:
+def _concept(tag: str) -> list[dict]:
+    """USD facts for one us-gaap concept. Raises rather than returning None:
+    a fetch or shape failure must abort the pull, never blank a committed CSV."""
+    doc = json.loads(
+        _curl(f"https://data.sec.gov/api/xbrl/companyconcept/CIK{CIK}/us-gaap/{tag}.json")
+    )
     try:
-        doc = json.loads(
-            _curl(f"https://data.sec.gov/api/xbrl/companyconcept/CIK{CIK}/us-gaap/{tag}.json")
-        )
         return doc["units"]["USD"]
-    except Exception:
-        return None
+    except KeyError as e:
+        raise RuntimeError(f"no USD units for concept {tag}: got {list(doc)}") from e
 
 
-def annual(tag: str, fy: int) -> float | None:
+def annual(tag: str, fy: int) -> float:
     """Full-year (10-K, ~365-day) value for a duration concept in fiscal year `fy`."""
-    rows = _concept(tag)
-    if not rows:
-        return None
     value = None
-    for r in rows:
+    for r in _concept(tag):
         if r.get("form") == "10-K" and r.get("fy") == fy and r.get("start"):
             span = (pd.Timestamp(r["end"]) - pd.Timestamp(r["start"])).days
             if 350 <= span <= 380:
                 value = float(r["val"])
+    if value is None:
+        raise RuntimeError(f"no FY{fy} 10-K annual value for concept {tag}")
     return value
 
 
-def instant(tag: str, fy: int) -> float | None:
-    """Balance-sheet (point-in-time) value at the fiscal year-end of `fy`."""
-    rows = _concept(tag)
-    if not rows:
-        return None
+def instant(tag: str, fy: int, *, required: bool = True) -> float | None:
+    """Balance-sheet (point-in-time) value at the fiscal year-end of `fy`.
+
+    `required=False` only for the FY2022 opening column, where EDGAR
+    genuinely carries no instant fact for some tags. Every reported year
+    is required so a fetch failure can never pass as an empty cell.
+    """
     value = None
-    for r in rows:
+    for r in _concept(tag):
         if r.get("end") == FY_END[fy] and not r.get("start"):
             value = float(r["val"])
+    if value is None and required:
+        raise RuntimeError(f"no value at {FY_END[fy]} for concept {tag}")
     return value
 
 
-def latest_quarter(tag: str) -> tuple[str, str, float] | None:
+def latest_quarter(tag: str) -> tuple[str, str, float]:
     """Most recent ~quarterly (80-100 day) value for a duration concept."""
     rows = _concept(tag)
-    if not rows:
-        return None
     quarters = [
         r for r in rows
         if r.get("start") and 80 <= (pd.Timestamp(r["end"]) - pd.Timestamp(r["start"])).days <= 100
     ]
     if not quarters:
-        return None
+        raise RuntimeError(f"no ~quarterly value for concept {tag}")
     r = sorted(quarters, key=lambda r: r["end"])[-1]
     return r["start"], r["end"], float(r["val"])
 
@@ -134,8 +140,8 @@ def pull_balance_sheet() -> pd.DataFrame:
     rows = []
     for line, tag in tags:
         cells = {"line": line}
-        for fy in (2022, 2023, 2024, 2025):
-            cells[f"FY{fy}"] = instant(tag, fy)
+        for fy in (2022, *FYS):
+            cells[f"FY{fy}"] = instant(tag, fy, required=fy in FYS)
         rows.append(cells)
     return pd.DataFrame(rows)
 
@@ -243,12 +249,18 @@ def write_sources() -> None:
 
 
 def main() -> None:
+    # Pull everything first: a failed fetch must abort with the committed
+    # source-traced CSVs untouched, never half-overwrite them.
+    frames = {
+        "income_statement.csv": pull_income_statement(),
+        "balance_sheet.csv": pull_balance_sheet(),
+        "cash_flow.csv": pull_cash_flow(),
+        "quarterly.csv": pull_quarterly(),
+        "segments.csv": pull_segments(),
+    }
     DATA.mkdir(parents=True, exist_ok=True)
-    pull_income_statement().to_csv(DATA / "income_statement.csv", index=False)
-    pull_balance_sheet().to_csv(DATA / "balance_sheet.csv", index=False)
-    pull_cash_flow().to_csv(DATA / "cash_flow.csv", index=False)
-    pull_quarterly().to_csv(DATA / "quarterly.csv", index=False)
-    pull_segments().to_csv(DATA / "segments.csv", index=False)
+    for name, frame in frames.items():
+        frame.to_csv(DATA / name, index=False)
     write_sources()
     print("Wrote data/*.csv and data/SOURCES.md")
 
