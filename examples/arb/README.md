@@ -27,7 +27,7 @@ not a kernel FX engine.
 ## Where the engine strains
 
 1. PDF transcription, not XBRL.
-2. No channel EBITDA in the filing — allocated from consolidated EBIT + D&A.
+2. No channel EBITDA in the filing: allocated from consolidated EBIT + D&A.
 3. Trade receivables used as AR, not the broader receivables line.
 4. No FY2023 balance sheet in this 4E, so Phase A is FY2025 only.
 5. Franking, associates (ORW), and acquisitions are outside the engine.
