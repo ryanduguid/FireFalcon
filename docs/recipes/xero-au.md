@@ -35,6 +35,23 @@ flag = detect_gst_inclusive(pl, control_total=111000.00)
 # False -> exclusive (safe); True -> inclusive (STOP, divide by 11 or re-export)
 ```
 
+The raw export loads as it comes from Reports (observed on the Demo
+Company (AU) Excel exports of the Profit and Loss and Balance Sheet,
+5 September 2026, saved as CSV): three title rows, a blank row, then a
+header whose account column is `Account` (column B on the Balance
+Sheet). The reader takes the first period column after `Account` and
+ignores comparative columns, so export one period per file rather than
+a compare-periods layout. Section rows, `Total <section>` subtotals and
+the derived Gross Profit, Net Profit and Net Assets rows are dropped.
+Xero writes natural balances (expenses and liabilities positive); the
+reader negates rows under expense, cost, liability and equity sections
+so income and assets come out positive, matching the flat
+`Code,Account,Amount` shape the fixtures use. Account codes appear only
+when the report is set to show them, as `Sales (200)`, and are split
+off. Export CSV or save the workbook from Excel first: every total in
+the `.xlsx` is a formula whose cached value is 0, which any non-Excel
+reader of the total rows would take at face value.
+
 Untracked rows land under `(untracked)` - if the entity tracks
 departments, any `(untracked)` balance on revenue or direct costs is a
 mapping conversation, not a default to sweep under head office.
