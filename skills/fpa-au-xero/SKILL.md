@@ -40,8 +40,13 @@ the operating loop.
 
 - Never commit a real client export; fixtures must be synthetic or
   confirmed-safe redactions. House rule, no exceptions.
-- Xero report layouts vary: some omit the Code column, some add
-  comparative-period columns. Parse by header name, not position.
+- The report layout Xero exports from Reports carries no account codes
+  unless the report is set to show them (`Sales (200)`), writes
+  expenses and liabilities as positive natural balances, and adds
+  comparative columns the reader ignores. `read_xero_report` finds the
+  header by name, drops section, subtotal and derived rows and
+  normalises signs; export one period per file and never read the
+  `.xlsx` totals outside Excel (formula cells cached at 0).
 - Duplicate account names across tracking splits are normal; the
   parser sums them by account. `reconcile-source` still flags
   duplicates in single-account-column exports.

@@ -20,7 +20,7 @@ published layout change cannot fail a branch that did not cause it. Run `pytest 
 network` when you touch `pyfpa/au/drivers.py` or refresh the RBA fixtures under
 `tests/fixtures/`.
 
-The distribution is `openfpa`; the importable package is `pyfpa` (`import pyfpa`).
+The distribution is `firefalcon`; the importable package is `pyfpa` (`import pyfpa`).
 
 ## The workflow
 
