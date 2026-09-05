@@ -19,6 +19,7 @@ concurrency:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
       contents: read
