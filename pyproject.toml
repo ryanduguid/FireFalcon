@@ -1,7 +1,7 @@
 [project]
-name = "openfpa"
+name = "firefalcon"
 version = "0.1.0"
-description = "Agent-native FP&A toolbelt with a tested finance kernel, durable company memory, and evidence-gated research."
+description = "Australian FP&A pack on openfpa: 30 June years, Xero AU, GST/BAS. Upstream is Jeff Brines / Guiderail."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
