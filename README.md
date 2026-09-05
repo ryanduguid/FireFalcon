@@ -23,7 +23,7 @@ license stay with Guiderail's openfpa. This repo adds 30 June years, Xero
 Australia, GST/BAS cash timing, AU payroll on-costs, and two worked examples:
 Harbour Light (synthetic) and ARB Corporation (ASX: ARB).
 
-**Package lifecycle:** source-only. Install from this repository; the `openfpa`
+**Package lifecycle:** source-only. Install from this repository; the `firefalcon`
 distribution is not published to PyPI.
 
 **openfpa is an FP&A workbench an AI coding agent can run.** It gives the agent a
@@ -448,7 +448,7 @@ This fork is not a claim to be upstream.
 
 ## Python kernel
 
-The importable package is `pyfpa`. The distribution name is `openfpa`.
+The importable package is `pyfpa`. The distribution name is `firefalcon`.
 
 ```python
 import pyfpa
