@@ -240,6 +240,40 @@ wheels = [
 ]
 
 [[package]]
+name = "firefalcon"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "openpyxl" },
+    { name = "pandas" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "build" },
+    { name = "coverage" },
+    { name = "diff-cover" },
+    { name = "formulas" },
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "build", marker = "extra == 'dev'", specifier = ">=1.2" },
+    { name = "coverage", marker = "extra == 'dev'", specifier = "==7.15.4" },
+    { name = "diff-cover", marker = "extra == 'dev'", specifier = "==10.5.1" },
+    { name = "formulas", marker = "extra == 'dev'", specifier = ">=1.2.7" },
+    { name = "openpyxl", specifier = ">=3.1" },
+    { name = "pandas", specifier = ">=2.2.3" },
+    { name = "pydantic", specifier = ">=2.10" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "formulas"
 version = "1.3.4"
 source = { registry = "https://pypi.org/simple" }
@@ -532,40 +566,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/0f/4e/6dff3733162d4a961
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6a/be/d07585e440d58835bad8f1c9ca7823b5252ffeda4c797e653a20215fca65/numpy_financial-1.0.0-py3-none-any.whl", hash = "sha256:bae534b357516f12258862d1f0181d911032d0467f215bfcd1c264b4da579047", size = 14025, upload-time = "2019-10-18T16:13:43.241Z" },
 ]
-
-[[package]]
-name = "openfpa"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "openpyxl" },
-    { name = "pandas" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "build" },
-    { name = "coverage" },
-    { name = "diff-cover" },
-    { name = "formulas" },
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "build", marker = "extra == 'dev'", specifier = ">=1.2" },
-    { name = "coverage", marker = "extra == 'dev'", specifier = "==7.15.4" },
-    { name = "diff-cover", marker = "extra == 'dev'", specifier = "==10.5.1" },
-    { name = "formulas", marker = "extra == 'dev'", specifier = ">=1.2.7" },
-    { name = "openpyxl", specifier = ">=3.1" },
-    { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pydantic", specifier = ">=2.10" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
-    { name = "pyyaml", specifier = ">=6.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "openpyxl"
