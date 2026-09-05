@@ -6,8 +6,11 @@ structures for the lineage pipeline:
 - code + tracking-aware: sums rows by (Account, Code), and exposes
   tracking option splits so Tracking Category options can map to
   departments or business units;
-- sign-aware: Xero P&L rows are positive for income, negative for
-  expenses (standard Xero export), and that convention is preserved;
+- sign-aware: rows come out positive for income and assets, negative for
+  expenses, liabilities and equity. A flat Code/Account/Amount file is
+  taken as already signed that way; the report layout Xero exports from
+  Reports carries natural balances (expenses and liabilities positive,
+  observed 5 September 2026) and is normalised by section;
 - GST-aware: Xero reports are GST-exclusive by default. Detects
   GST-INCLUSIVE exports by comparing a control total when provided, or
   by heuristics when not, and refuses to guess silently. Never feed a
@@ -22,6 +25,7 @@ are never committed. See docs/recipes/xero-au.md.
 from __future__ import annotations
 
 import csv
+import re
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -75,38 +79,122 @@ class XeroReport(BaseModel):
         return sorted({r.tracking_option for r in self.rows} - set(allowed) - {""})
 
 
+# Report-layout rows that are derived, not posted: skipped along with every
+# "Total <section>" subtotal. Custom report layouts can rename these.
+# ponytail: fixed label set; read the layout's own row types if a renamed
+# derived row ever reaches by_account().
+_DERIVED_ROWS = {"gross profit", "net profit", "net loss", "net assets", "total"}
+# A section whose name matches carries natural-balance credits (expenses,
+# cost of sales, liabilities, equity): its rows are negated so the report
+# lands in this module's convention, income and assets positive.
+_NEGATE_SECTION = re.compile(r"expense|cost|liabilit|equity", re.IGNORECASE)
+# "Sales (200)": the shape Xero uses when a report shows account codes. A
+# code is alphanumeric, at most 10 characters and carries a digit, so
+# "Rent (Sydney)" keeps its parenthetical as part of the name.
+_CODE_SUFFIX = re.compile(r"^(?P<name>.+) \((?P<code>[A-Za-z0-9]{1,10})\)$")
+
+
+def _split_code(label: str) -> tuple[str, str]:
+    match = _CODE_SUFFIX.match(label)
+    if match and any(ch.isdigit() for ch in match["code"]):
+        return match["code"], match["name"]
+    return "", label
+
+
+def _read_flat_layout(rows: list[list[str]], fields: list[str]) -> list[XeroRow]:
+    """Columns Code, Account, Amount and optional Tracking Option, header first."""
+    parsed: list[XeroRow] = []
+    for raw in rows[1:]:
+        record = dict(zip(fields, raw))
+        account = (record.get("Account") or "").strip()
+        if not account:
+            continue
+        parsed.append(
+            XeroRow(
+                code=(record.get("Code") or "").strip(),
+                account=account,
+                amount=_parse_amount(record.get("Amount")),
+                tracking_option=(record.get("Tracking Option") or "").strip(),
+            )
+        )
+    return parsed
+
+
+def _read_report_layout(rows: list[list[str]], path: Path) -> list[XeroRow]:
+    """The layout Xero exports from Reports, saved as CSV.
+
+    Observed on the Demo Company (AU) Excel exports of the Profit and Loss
+    and Balance Sheet, 5 September 2026. Rows 1 to 3 are the report name,
+    the organisation and the period, then a blank row, then a header whose
+    account column is labelled "Account": column A on the P&L, column B on
+    the Balance Sheet, whose column A carries the top-level section. The
+    column after "Account" is the reported period; comparative columns to
+    its right are ignored, so export one period per file. A section row has
+    no amounts. "Total <section>" subtotals and the derived Gross Profit,
+    Net Profit and Net Assets rows are skipped, so every row returned is a
+    posting account. Xero writes every amount as its natural balance, with
+    expenses and liabilities positive; rows under a section whose name
+    contains expense, cost, liabilit or equity are negated to reach this
+    module's convention. Totals in the .xlsx are formulas whose cached
+    value is 0, which is one more reason they are never read.
+    """
+    header_idx = next(
+        (i for i, r in enumerate(rows) if "Account" in [c.strip() for c in r]), None
+    )
+    if header_idx is None:
+        first = [c.strip() for c in rows[0]] if rows else []
+        raise ValueError(
+            f"expected columns 'Account' and 'Amount', or a Xero report header "
+            f"row containing 'Account', got {first} in {path}"
+        )
+    header = [c.strip() for c in rows[header_idx]]
+    name_idx = header.index("Account")
+    amount_idx = name_idx + 1
+    if amount_idx >= len(header) or not header[amount_idx]:
+        raise ValueError(f"no period column after 'Account' in {path}")
+    sign = 1.0
+    parsed: list[XeroRow] = []
+    for raw in rows[header_idx + 1 :]:
+        cells = [c.strip() for c in raw] + [""] * (len(header) - len(raw))
+        label = cells[name_idx] or (cells[0] if name_idx else "")
+        if not label:
+            continue
+        if all(cell == "" for cell in cells[amount_idx:]):
+            sign = -1.0 if _NEGATE_SECTION.search(label) else 1.0
+            continue
+        if label.startswith("Total ") or label.lower() in _DERIVED_ROWS:
+            continue
+        code, account = _split_code(label)
+        parsed.append(
+            XeroRow(code=code, account=account, amount=sign * _parse_amount(cells[amount_idx]))
+        )
+    return parsed
+
+
 def read_xero_report(path: str | Path) -> XeroReport:
     """Parse a Xero CSV export into an XeroReport.
 
-    Expected columns: Code, Account, Amount; optional Tracking Option.
-    Xero omits Code on some report layouts; empty codes are allowed.
+    Two layouts are accepted. A flat file whose first row carries the
+    columns Code, Account, Amount and optional Tracking Option (Code may be
+    blank), and the report layout Xero exports from Reports, recognised by
+    its title rows above a header containing "Account". See
+    ``_read_report_layout`` for what the second one skips and normalises.
     """
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"Xero report not found: {p}")
-    rows: list[XeroRow] = []
-    with p.open(newline="") as f:
-        reader = csv.DictReader(f)
-        fields = reader.fieldnames or []
-        if "Account" not in fields or "Amount" not in fields:
-            raise ValueError(
-                f"expected columns 'Account' and 'Amount', got {fields}"
-            )
-        for raw in reader:
-            account = (raw.get("Account") or "").strip()
-            if not account:
-                continue
-            rows.append(
-                XeroRow(
-                    code=(raw.get("Code") or "").strip(),
-                    account=account,
-                    amount=_parse_amount(raw.get("Amount")),
-                    tracking_option=(raw.get("Tracking Option") or "").strip(),
-                )
-            )
+    with p.open(newline="", encoding="utf-8-sig") as f:
+        rows = [row for row in csv.reader(f) if any(c.strip() for c in row)]
     if not rows:
         raise ValueError(f"no rows parsed from {p}")
-    return XeroReport(rows=rows)
+    fields = [c.strip() for c in rows[0]]
+    if "Account" in fields and "Amount" in fields:
+        parsed = _read_flat_layout(rows, fields)
+    else:
+        parsed = _read_report_layout(rows, p)
+    if not parsed:
+        raise ValueError(f"no rows parsed from {p}")
+    return XeroReport(rows=parsed)
 
 
 def detect_gst_inclusive(

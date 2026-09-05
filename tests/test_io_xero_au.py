@@ -178,3 +178,90 @@ def test_reconcile_fails_on_unmapped_accounts(tmp_path):
     assert reconcile["ok"] is False
     assert reconcile["error"]["type"] == "reconciliation_failed"
     assert reconcile["data"]["unmapped"]
+
+
+# The layout Xero exports from Reports, observed on the Demo Company (AU)
+# on 5 September 2026 and saved as CSV: title rows, a header carrying
+# "Account", section rows without amounts, "Total <section>" subtotals,
+# derived rows, natural-balance amounts and a comparative column.
+FIXTURE_PL_EXPORT = FIXTURE_PL.with_name("xero_pl_au_export.csv")
+FIXTURE_BS_EXPORT = FIXTURE_BS.with_name("xero_bs_au_export.csv")
+
+
+def test_report_layout_pl_loads_posting_accounts_with_normalised_signs():
+    report = read_xero_report(FIXTURE_PL_EXPORT)
+    accounts = report.by_account()
+    for label in (
+        "Trading Income",
+        "Total Trading Income",
+        "Gross Profit",
+        "Operating Expenses",
+        "Total Operating Expenses",
+        "Net Profit",
+    ):
+        assert label not in accounts
+    assert len(report.rows) == 7
+    assert accounts["Sales"] == pytest.approx(27500.0)
+    assert accounts["Interest Income"] == pytest.approx(97.05)
+    # Xero exports expenses positive; the module convention is negative.
+    assert accounts["Purchases"] == pytest.approx(-760.0)
+    assert accounts["Wages and Salaries"] == pytest.approx(-13400.0)
+    # A credit sitting in an expense section flips the other way.
+    assert accounts["Freight & Courier"] == pytest.approx(9.09)
+    # Only the reported period is read; the comparative column is ignored.
+    assert accounts["Rent"] == pytest.approx(-1075.0)
+    # The GST detector still sees income as income.
+    assert detect_gst_inclusive(report, control_total=27500.0 + 97.05) is False
+
+
+def test_report_layout_bs_reads_account_from_column_b():
+    bs = read_xero_report(FIXTURE_BS_EXPORT).by_account()
+    assert bs["Business Bank Account"] == pytest.approx(85420.0)
+    assert bs["Less Accumulated Depreciation"] == pytest.approx(-12000.0)
+    assert bs["GST"] == pytest.approx(-2800.0)
+    assert bs["Business Loan"] == pytest.approx(-60000.0)
+    assert bs["Retained Earnings"] == pytest.approx(-37400.0)
+    for label in (
+        "Assets",
+        "Bank",
+        "Total Bank",
+        "Total Assets",
+        "Net Assets",
+        "Liabilities",
+        "Current Liabilities",
+        "Equity",
+        "Total Equity",
+    ):
+        assert label not in bs
+    assert len(bs) == 10
+
+
+def test_report_layout_splits_a_shown_account_code(tmp_path):
+    p = tmp_path / "pl.csv"
+    p.write_text(
+        "Profit and Loss\nOrg\nFor the month ended 31 August 2026\n\n"
+        "Account,Aug 2026\n\n"
+        "Trading Income\nSales (200),100.00\nTotal Trading Income,100.00\n\n"
+        "Operating Expenses\nRent (Sydney),40.00\nRent (469),60.00\n"
+        "Total Operating Expenses,100.00\n\nNet Profit,0\n"
+    )
+    rows = read_xero_report(p).rows
+    assert [(r.code, r.account, r.amount) for r in rows] == [
+        ("200", "Sales", 100.0),
+        ("", "Rent (Sydney)", -40.0),
+        ("469", "Rent", -60.0),
+    ]
+
+
+def test_report_layout_without_a_period_column_is_refused(tmp_path):
+    p = tmp_path / "pl.csv"
+    p.write_text("Profit and Loss\nOrg\n\nAccount\nSales,1\n")
+    with pytest.raises(ValueError, match="period column"):
+        read_xero_report(p)
+
+
+def test_unrecognised_layout_names_the_columns_it_wanted(tmp_path):
+    p = tmp_path / "bad.csv"
+    p.write_text("Name,Value\nSales,1\n")
+    with pytest.raises(ValueError, match="'Account'"):
+        read_xero_report(p)
