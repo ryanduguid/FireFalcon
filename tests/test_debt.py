@@ -21,7 +21,7 @@ def test_term_loan_amortization(sample_config):
 
 def test_loc_is_interest_only():
     cfg = EntityConfig(
-        name="L", start_month="2026-01", horizon_months=3,
+        name="L", start_month="2026-01", tax_rate=0.30, horizon_months=3,
         channels=[Channel(name="C", annual_revenue=12.0,
                           seasonality=[1.0] * 12, cogs_pct=0.5)],
         debt=[DebtInstrument(name="LOC", kind="loc", opening_balance=1000.0,
@@ -36,7 +36,7 @@ def test_loc_is_interest_only():
 
 def test_debt_sums_across_multiple_instruments():
     cfg = EntityConfig(
-        name="Multi", start_month="2026-01", horizon_months=2,
+        name="Multi", start_month="2026-01", tax_rate=0.30, horizon_months=2,
         channels=[Channel(name="C", annual_revenue=12.0,
                           seasonality=[1.0] * 12, cogs_pct=0.5)],
         debt=[
