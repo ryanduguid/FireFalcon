@@ -236,3 +236,21 @@ def test_a_whole_dollar_control_needs_the_absolute_allowance(tmp_path):
     expected = {"revenue.product": 1000}
     assert _reconcile(path, expected)["passed"] is False
     assert _reconcile(path, expected, abs_tolerance=0.5)["passed"] is True
+
+
+def test_an_exact_half_cent_is_within_the_default(tmp_path):
+    # 0.1 + 0.005 - 0.1 is 0.0050000000000000044 in floats, just over the limit.
+    path = tmp_path / "gl.csv"
+    path.write_text("Account,Amount\nA,0.1\nB,0.005\n")
+    mappings = MappingRegistry(mappings=[
+        MappingRule(source_id="gl", source_value=name, target="t") for name in ("A", "B")
+    ])
+
+    def passed(expected: float) -> bool:
+        return reconcile_account_table(
+            path, source_id="gl", mappings=mappings, account_column="Account",
+            amount_column="Amount", expected={"t": expected},
+        )["passed"]
+
+    assert passed(0.1) is True
+    assert passed(0.09) is False
