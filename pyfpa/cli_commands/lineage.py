@@ -221,6 +221,7 @@ def command_reconcile_source(args: argparse.Namespace) -> int:
             amount_column=args.amount_column,
             expected=_expected_from_json(args.expected_json),
             tolerance=args.tolerance,
+            abs_tolerance=args.abs_tolerance,
         )
         if args.allow_unmapped and not result["duplicates"]:
             expected_passed = all(
