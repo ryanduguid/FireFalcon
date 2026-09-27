@@ -12,7 +12,7 @@ def test_fixed_opex_constant(sample_config):
 
 def test_variable_opex_scales_with_revenue():
     cfg = EntityConfig(
-        name="V", start_month="2026-01",
+        name="V", start_month="2026-01", tax_rate=0.30,
         channels=[Channel(name="C", annual_revenue=1200.0,
                           seasonality=[1.0] * 12, cogs_pct=0.5)],
         opex=[OpexLine(name="Ads", kind="variable", pct_of_revenue=0.10)],

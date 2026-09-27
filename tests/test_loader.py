@@ -15,6 +15,7 @@ def _minimal_kwargs():
     return {
         "name": "X",
         "start_month": "2026-01",
+        "tax_rate": 0.30,
         "channels": [Channel(name="D2C", annual_revenue=1200.0,
                              seasonality=[1.0] * 12, cogs_pct=0.5)],
         "working_capital": WorkingCapitalConfig(dso_days=30, dpo_days=30, dio_days=0),
@@ -24,8 +25,16 @@ def _minimal_kwargs():
 def test_entity_config_defaults():
     cfg = EntityConfig(**_minimal_kwargs())
     assert cfg.horizon_months == 12
-    assert cfg.tax_rate == 0.21
     assert cfg.opening_balances.cash == 0.0
+
+
+def test_a_config_without_a_tax_rate_is_refused():
+    """No default fits: 0.21 was the US federal rate, and an Australian company
+    pays 25% or 30% depending on base rate entity status."""
+    kwargs = _minimal_kwargs()
+    del kwargs["tax_rate"]
+    with pytest.raises(ValidationError, match="tax_rate"):
+        EntityConfig(**kwargs)
 
 
 def test_seasonality_must_be_twelve():
