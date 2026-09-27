@@ -33,6 +33,7 @@ from __future__ import annotations
 import pandas as pd
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from pyfpa.au.calendar import require_iso
 from pyfpa.au.rates import (
     PayrollTaxEntry,
     RateEntry,
@@ -78,6 +79,7 @@ class Role(BaseModel):
     def _valid_month(cls, v: str | None) -> str | None:
         if v is None:
             return v
+        require_iso(v, "month")
         try:
             pd.Period(v, freq="M")
         except Exception as e:
