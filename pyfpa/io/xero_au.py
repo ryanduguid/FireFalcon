@@ -116,14 +116,28 @@ def _split_code(label: str) -> tuple[str, str]:
     return "", label
 
 
-def _read_flat_layout(rows: list[list[str]], fields: list[str]) -> list[XeroRow]:
-    """Columns Code, Account, Amount and optional Tracking Option, header first."""
+def _read_flat_layout(rows: list[list[str]], fields: list[str], lines: list[int]) -> list[XeroRow]:
+    """Columns Code, Account, Amount and optional Tracking Option, header first.
+
+    The refusals read_pl_csv makes: an unnamed or repeated column, a row with
+    more filled fields than the header (an unquoted thousands separator splits
+    one amount in two, and the first half was read), and a filled row with no
+    account (its amount was dropped). ``lines`` holds each row's line number.
+    """
+    if any(not name for name in fields):
+        raise ValueError("unnamed Xero CSV columns")
+    if len(fields) != len(set(fields)):
+        raise ValueError(f"duplicate Xero CSV columns: {fields}")
     parsed: list[XeroRow] = []
-    for raw in rows[1:]:
+    for line, raw in zip(lines[1:], rows[1:]):
+        if any(cell.strip() for cell in raw[len(fields):]):
+            raise ValueError(
+                f"extra fields in Xero CSV row {line}; quote any amount that contains a comma"
+            )
         record = dict(zip(fields, raw))
         account = (record.get("Account") or "").strip()
         if not account:
-            continue
+            raise ValueError(f"missing account in Xero CSV row {line}")
         parsed.append(
             XeroRow(
                 code=(record.get("Code") or "").strip(),
@@ -191,21 +205,36 @@ def _read_report_layout(
         amount_indices = range(amount_idx, amount_idx + 1)
     sign = 1.0
     parsed: list[XeroRow] = []
+    # Headings seen so far, so "Total X" is skipped only as the subtotal of an X
+    # heading. A posting account that happens to start with "Total " (such as
+    # "Total Tools Hire") was dropped with its amount; it is now refused.
+    headings: set[str] = set()
     for raw in rows[header_idx + 1 :]:
         cells = [c.strip() for c in raw] + [""] * (len(header) - len(raw))
         label = cells[name_idx] or (cells[0] if name_idx else "")
         if not label:
             continue
-        if label.startswith("Total ") or label.lower() in _DERIVED_ROWS:
+        if label.lower() in _DERIVED_ROWS:
+            continue
+        if label.startswith("Total "):
+            if label[len("Total ") :].casefold() not in headings:
+                raise ValueError(
+                    f"row {label!r} reads as a subtotal, but no {label[len('Total ') :]!r} "
+                    f"heading precedes it in {path}; if it is a posting account, rename it"
+                )
             continue
         blank_amounts = all(cell == "" for cell in cells[amount_idx:])
-        section_row = blank_amounts and label.casefold() in _SECTION_LABELS
+        # Some layouts head a deduction section "Less Operating Expenses".
+        section = label.casefold().removeprefix("less ")
+        if blank_amounts:
+            headings.update({label.casefold(), section})
+        section_row = blank_amounts and section in _SECTION_LABELS
         if tracking_comparison and not section_row and len(raw) != len(header):
             raise ValueError(f"tracking row {label!r} has the wrong number of columns in {path}")
         if tracking_comparison and not section_row and blank_amounts:
             raise ValueError(f"tracking row {label!r} has no amounts in {path}")
         if blank_amounts:
-            if label.casefold() in _SECTION_LABELS and sum(bool(cell) for cell in cells[:amount_idx]) == 1:
+            if section in _SECTION_LABELS and sum(bool(cell) for cell in cells[:amount_idx]) == 1:
                 sign = -1.0 if _NEGATE_SECTION.search(label) else 1.0
             continue
         code, account = _split_code(label)
@@ -242,14 +271,16 @@ def read_xero_report(path: str | Path, *, tracking_comparison: bool = False) -> 
     if not p.exists():
         raise FileNotFoundError(f"Xero report not found: {p}")
     with p.open(newline="", encoding="utf-8-sig") as f:
-        rows = [row for row in csv.reader(f) if any(c.strip() for c in row)]
+        reader = csv.reader(f)
+        numbered = [(reader.line_num, row) for row in reader if any(c.strip() for c in row)]
+    rows = [row for _, row in numbered]
     if not rows:
         raise ValueError(f"no rows parsed from {p}")
     fields = [c.strip() for c in rows[0]]
     if "Account" in fields and "Amount" in fields:
         if tracking_comparison:
             raise ValueError("tracking_comparison requires the standard P&L report layout")
-        parsed = _read_flat_layout(rows, fields)
+        parsed = _read_flat_layout(rows, fields, [line for line, _ in numbered])
     else:
         parsed = _read_report_layout(rows, p, tracking_comparison=tracking_comparison)
     if not parsed:
