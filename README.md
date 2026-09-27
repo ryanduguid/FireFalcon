@@ -69,7 +69,7 @@ Read the [assumptions and limits](examples/lumbridge-services/README.md), then u
 
 An Australian extension of [openfpa](https://github.com/JeffBrines/openfpa), by Guiderail: 30 June years, Xero AU mapping, GST/BAS cash timing and payroll on-cost assumptions.
 
-**Package lifecycle:** published. The distribution is `au-fpa-pack`, the import is `pyfpa`, and the command is `openfpa`. Version 0.1.1 is on PyPI as `au-fpa-pack` and has an immutable GitHub release; a clone stays the way to develop it.
+**Package lifecycle:** published. The distribution is `au-fpa-pack`, the import is `pyfpa`, and the command is `openfpa`. Version 0.1.2 is on PyPI as `au-fpa-pack` and has an immutable GitHub release; a clone stays the way to develop it.
 
 ## Reproduce and inspect
 
