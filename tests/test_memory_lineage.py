@@ -187,3 +187,70 @@ def test_missing_expected_target_cannot_pass_as_a_real_zero(tmp_path):
                                      expected={"revenue": 100, "missing": 0})
     assert not result["passed"]
     assert result["variances"]["missing"]["mapped"] is None
+
+
+def _revenue_rules() -> MappingRegistry:
+    return MappingRegistry(mappings=[
+        MappingRule(source_id="gl", source_value="Product Revenue", target="revenue.product"),
+        MappingRule(source_id="gl", source_value="Service Revenue", target="revenue.service"),
+        MappingRule(source_id="gl", source_value="Clearing", target="clearing"),
+    ])
+
+
+def _reconcile(path, expected, **tolerances):
+    return reconcile_account_table(
+        path, source_id="gl", mappings=_revenue_rules(), account_column="Account",
+        amount_column="Amount", expected=expected, **tolerances,
+    )
+
+
+def test_amounts_cross_mapped_between_targets_fail_by_default(tmp_path):
+    # 3,000 of service revenue booked to product revenue: each target is within 1%,
+    # which the old relative default passed.
+    path = tmp_path / "gl.csv"
+    path.write_text("Account,Amount\nProduct Revenue,503000\nService Revenue,297000\n")
+    expected = {"revenue.product": 500000, "revenue.service": 300000}
+    assert _reconcile(path, expected)["passed"] is False
+    assert _reconcile(path, expected, tolerance=0.01)["passed"] is True
+
+
+def test_float_noise_on_a_nil_target_passes(tmp_path):
+    # 0.10 + 0.20 - 0.30 is 5.55e-17 in floats, which an exact nil check failed.
+    path = tmp_path / "gl.csv"
+    path.write_text("Account,Amount\nClearing A,0.10\nClearing B,0.20\nClearing C,-0.30\n")
+    mappings = MappingRegistry(mappings=[
+        MappingRule(source_id="gl", source_value=name, target="clearing")
+        for name in ("Clearing A", "Clearing B", "Clearing C")
+    ])
+    result = reconcile_account_table(
+        path, source_id="gl", mappings=mappings, account_column="Account",
+        amount_column="Amount", expected={"clearing": 0},
+    )
+    assert result["mapped_totals"]["clearing"] != 0
+    assert result["passed"] is True
+
+
+def test_a_whole_dollar_control_needs_the_absolute_allowance(tmp_path):
+    path = tmp_path / "gl.csv"
+    path.write_text("Account,Amount\nProduct Revenue,1000.20\n")
+    expected = {"revenue.product": 1000}
+    assert _reconcile(path, expected)["passed"] is False
+    assert _reconcile(path, expected, abs_tolerance=0.5)["passed"] is True
+
+
+def test_an_exact_half_cent_is_within_the_default(tmp_path):
+    # 0.1 + 0.005 - 0.1 is 0.0050000000000000044 in floats, just over the limit.
+    path = tmp_path / "gl.csv"
+    path.write_text("Account,Amount\nA,0.1\nB,0.005\n")
+    mappings = MappingRegistry(mappings=[
+        MappingRule(source_id="gl", source_value=name, target="t") for name in ("A", "B")
+    ])
+
+    def passed(expected: float) -> bool:
+        return reconcile_account_table(
+            path, source_id="gl", mappings=mappings, account_column="Account",
+            amount_column="Amount", expected={"t": expected},
+        )["passed"]
+
+    assert passed(0.1) is True
+    assert passed(0.09) is False
