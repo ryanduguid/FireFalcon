@@ -61,7 +61,12 @@ month/year or day/month/year headings, takes the first period column after
 `Account` and ignores subsequent period columns. Export one period per file
 when loading monthly actuals. Other headings are refused unless tracking
 mode is explicitly selected below. Section rows, `Total <section>` subtotals
-and the derived Gross Profit, Net Profit and Net Assets rows are dropped.
+and the derived Gross Profit, Net Profit and Net Assets rows are dropped. A
+`Total X` row is dropped only after an `X` heading (or `Less X`); any other row
+starting `Total ` is refused, because it may be a posting account. A flat file
+is refused when a row has more filled fields than the header (quote amounts
+that contain commas), a filled row has no account, or a column is unnamed or
+repeated.
 Xero writes natural balances (expenses and liabilities positive); the
 reader negates rows under expense, cost, liability and equity sections
 so income and assets come out positive, matching the flat

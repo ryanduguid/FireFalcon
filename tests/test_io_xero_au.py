@@ -375,3 +375,47 @@ def test_unrecognised_layout_names_the_columns_it_wanted(tmp_path):
     p.write_text("Name,Value\nSales,1\n")
     with pytest.raises(ValueError, match="'Account'"):
         read_xero_report(p)
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("Code,Account,Amount\n200,Sales,1,234.56\n400,Rent,500.00\n", "extra fields in Xero CSV row 2"),
+        ("Code,Account,Amount\n200,Sales,1000.00\n\n260,,250.00\n", "missing account in Xero CSV row 4"),
+        ("Code,Account,Amount,Amount\n200,Sales,1000.00,0\n", "duplicate Xero CSV columns"),
+        ("Code,Account,Amount,\n200,Sales,1000.00,\n", "unnamed Xero CSV columns"),
+    ],
+)
+def test_xero_flat_layout_refuses_what_read_pl_csv_refuses(tmp_path, text, message):
+    """Each of these used to read silently: Sales as 1.0, the 250.00 dropped, the last Amount column kept."""
+    path = tmp_path / "flat.csv"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match=message):
+        read_xero_report(path)
+
+
+REPORT_HEAD = "Profit and Loss\nProbe Pty Ltd\nFor the month ended 31 July 2026\n\nAccount,Jul 2026\n"
+
+
+def test_a_posting_account_named_total_is_refused_not_dropped(tmp_path):
+    path = tmp_path / "pl.csv"
+    path.write_text(
+        REPORT_HEAD + "Trading Income,\nSales,10000.00\nTotal Trading Income,10000.00\n"
+        "Operating Expenses,\nRent,2000.00\nTotal Tools Hire,750.00\n"
+        "Total Operating Expenses,2750.00\nNet Profit,7250.00\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="'Total Tools Hire' reads as a subtotal"):
+        read_xero_report(path)
+
+
+def test_subtotals_of_less_headings_and_both_export_layouts_still_read(tmp_path):
+    path = tmp_path / "pl.csv"
+    path.write_text(
+        REPORT_HEAD + "Income,\nSales,10000.00\nTotal Income,10000.00\n"
+        "Less Operating Expenses,\nRent,2000.00\nTotal Operating Expenses,2000.00\nNet Profit,8000.00\n",
+        encoding="utf-8",
+    )
+    assert read_xero_report(path).by_account() == {"Sales": 10000.0, "Rent": -2000.0}
+    for fixture in ("xero_pl_au_export.csv", "xero_bs_au_export.csv", "xero_pl_au.csv", "xero_bs_au.csv"):
+        assert read_xero_report(FIXTURE_PL.parent / fixture).rows
