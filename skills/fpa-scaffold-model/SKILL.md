@@ -24,6 +24,7 @@ Map the real numbers onto the existing engine structure.
    - cost accounts → `opex[]` as `OpexLine(kind="fixed", monthly_amount=…)` or `kind="variable", pct_of_revenue=…`
    - debt → `debt[]` (`term_loan` with `monthly_principal`, or interest-only `loc`)
    - balance-sheet rhythm → `working_capital(dso_days, dpo_days, dio_days)` and `opening_balances`
+   - income tax → `tax_rate`, which is required: 25% for a base rate entity, otherwise 30%. Ask; do not assume either.
 3. **Write** the company model and config under `models/generated/`. Validate
    config with `pyfpa.load_config(path)`, which raises on a missing required
    field, an out-of-range value, and any key the schema does not define, so a
@@ -38,7 +39,7 @@ Map the real numbers onto the existing engine structure.
    discovery; it does not run it.
 7. **Surface assumptions**: list the 6 to 10 inferences a human must confirm
    (seasonality shape, fixed versus variable splits, cogs_pct per channel, opening
-   balances). Do not bury them.
+   balances, the company tax rate). Do not bury them.
 
 ## Conventions (match the engine)
 

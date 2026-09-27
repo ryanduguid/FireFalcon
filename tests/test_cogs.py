@@ -14,7 +14,7 @@ def test_cogs_applies_per_channel_pct(sample_config):
 
 def test_cogs_total_sums_across_channels():
     cfg = EntityConfig(
-        name="M", start_month="2026-01", horizon_months=12,
+        name="M", start_month="2026-01", tax_rate=0.30, horizon_months=12,
         channels=[
             Channel(name="A", annual_revenue=1200.0, seasonality=[1.0] * 12, cogs_pct=0.5),
             Channel(name="B", annual_revenue=2400.0, seasonality=[1.0] * 12, cogs_pct=0.25),
