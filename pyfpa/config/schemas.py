@@ -96,7 +96,9 @@ class EntityConfig(_ConfigModel):
     name: str
     start_month: str
     horizon_months: int = Field(default=12, ge=1, le=120)
-    tax_rate: float = Field(default=0.21, ge=0, le=1)
+    # Required: the old 0.21 default was the US federal rate, and no single
+    # default fits Australia, where a company pays 25% (base rate entity) or 30%.
+    tax_rate: float = Field(ge=0, le=1)
     da_monthly: float = Field(default=0.0, ge=0)      # depreciation and amortisation
     capex_monthly: float = Field(default=0.0, ge=0)   # capital expenditure
     channels: list[Channel] = Field(min_length=1)
