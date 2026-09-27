@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import csv
 import re
-from collections.abc import Iterable
 from pathlib import Path
 
 from pydantic import BaseModel, Field
