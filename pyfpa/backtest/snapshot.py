@@ -46,6 +46,20 @@ def save_snapshot(snapshot: Snapshot, path: str | Path, *, overwrite: bool = Fal
         output.write(yaml.safe_dump(snapshot.model_dump(), sort_keys=False))
 
 
+def load_forecast_snapshots(workspace: Path) -> tuple[list[Snapshot], list[str]]:
+    """Every snapshot under ``workspace/forecasts``, plus the files that failed to parse."""
+    snapshots: list[Snapshot] = []
+    errors: list[str] = []
+    forecasts_dir = workspace / "forecasts"
+    if forecasts_dir.is_dir():
+        for path in sorted(forecasts_dir.glob("*.yaml")):
+            try:
+                snapshots.append(load_snapshot(path))
+            except Exception as exc:
+                errors.append(f"{path.name}: {exc}")
+    return snapshots, errors
+
+
 def load_snapshot(path: str | Path) -> Snapshot:
     """Deserialise a Snapshot from a YAML file."""
     p = Path(path)

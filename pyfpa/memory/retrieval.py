@@ -141,7 +141,11 @@ def build_context_pack(
     limit: int = 8,
 ) -> str:
     """Render a bounded, source-linked memory pack for an agent task."""
-    hits = search_memory(index, task, categories=categories, limit=limit)
+    return render_context_pack(task, search_memory(index, task, categories=categories, limit=limit))
+
+
+def render_context_pack(task: str, hits: list[MemoryHit]) -> str:
+    """The pack text for hits already found by ``search_memory``."""
     lines = [
         "# Task Memory Pack",
         "",

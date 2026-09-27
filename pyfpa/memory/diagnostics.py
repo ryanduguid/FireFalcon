@@ -197,18 +197,10 @@ def _check_corrections(
 def _check_snapshots(
     root: Path, workspace: Path, checks: list[dict[str, str]]
 ) -> None:
-    from pyfpa.backtest.snapshot import load_snapshot
+    from pyfpa.backtest.snapshot import load_forecast_snapshots
 
-    forecasts_dir = workspace / "forecasts"
-    snapshot_count = 0
-    parse_errors: list[str] = []
-    if forecasts_dir.is_dir():
-        for snap_path in sorted(forecasts_dir.glob("*.yaml")):
-            try:
-                load_snapshot(snap_path)
-                snapshot_count += 1
-            except Exception as snap_exc:
-                parse_errors.append(f"{snap_path.name}: {snap_exc}")
+    snapshots, parse_errors = load_forecast_snapshots(workspace)
+    snapshot_count = len(snapshots)
     if parse_errors:
         _check(
             checks,

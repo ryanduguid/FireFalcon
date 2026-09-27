@@ -79,22 +79,14 @@ def command_correction_list(args: argparse.Namespace) -> int:
 
 def command_scorecard_render(args: argparse.Namespace) -> int:
     from pyfpa.backtest.learn import render_scorecard
-    from pyfpa.backtest.snapshot import load_snapshot
+    from pyfpa.backtest.snapshot import load_forecast_snapshots
 
     opened = Workspace.open(args.path)
     root = opened.root
     workspace = opened.memory
     if (failure := _require_initialized("scorecard-render", args, "rendering scorecard")) is not None:
         return failure
-    forecasts_dir = workspace / "forecasts"
-    snapshots = []
-    parse_errors = []
-    if forecasts_dir.is_dir():
-        for snap_path in sorted(forecasts_dir.glob("*.yaml")):
-            try:
-                snapshots.append(load_snapshot(snap_path))
-            except Exception as exc:
-                parse_errors.append(f"{snap_path.name}: {exc}")
+    snapshots, parse_errors = load_forecast_snapshots(workspace)
     if parse_errors:
         return _failure(
             "scorecard-render",
@@ -159,8 +151,8 @@ def command_experiment_list(args: argparse.Namespace) -> int:
 
 def command_context_pack(args: argparse.Namespace) -> int:
     from pyfpa.memory.retrieval import (
-        build_context_pack,
         build_memory_index,
+        render_context_pack,
         search_memory,
     )
 
@@ -171,13 +163,8 @@ def command_context_pack(args: argparse.Namespace) -> int:
         return failure
     try:
         index = build_memory_index(workspace)
-        pack = build_context_pack(
-            index,
-            args.task,
-            categories=args.category or None,
-            limit=args.limit,
-        )
         hits = search_memory(index, args.task, categories=args.category or None, limit=args.limit)
+        pack = render_context_pack(args.task, hits)
     except Exception as exc:
         return _failure("context-pack", root, "context_pack_failed", str(exc))
     return _success(

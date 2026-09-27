@@ -73,14 +73,9 @@ ABS_FREQUENCIES = {
     "labour_force": "M",
 }
 
-# Keys the ABS no longer updates. Their history is still usable when labelled.
-ABS_CEASED = {
-    "retail_trade": (
-        "Retail Trade, Australia ceased with the June 2025 period and RT_H is no "
-        "longer updated. Use it as history, and assess the Monthly Household "
-        "Spending Indicator separately: it measures a different concept."
-    ),
-}
+# Retail Trade, Australia ceased with the June 2025 period and RT_H is no longer
+# updated: treat retail_trade as history, and assess the Monthly Household Spending
+# Indicator separately, since it measures a different concept.
 
 _UA = "au-fpa-pack (github.com/ryanduguid/au-fpa-pack)"
 

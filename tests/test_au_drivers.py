@@ -259,7 +259,6 @@ def test_abs_dataflow_ids_are_the_documented_indicator_api_ones():
     }
     assert set(drivers.ABS_FREQUENCIES) == set(drivers.ABS_DATAFLOWS)
     assert all(identifier.endswith("_H") for identifier in drivers.ABS_DATAFLOWS.values())
-    assert "retail_trade" in drivers.ABS_CEASED
 
 
 def test_abs_rejects_a_frequency_the_key_does_not_promise(monkeypatch):
