@@ -510,7 +510,6 @@ def build_parser() -> JsonArgumentParser:
         help="Execute fixture mode and reconcile normalized connector output",
     )
     connector_validate_parser.add_argument("--name", required=True)
-    connector_validate_parser.add_argument("--timeout", type=float, default=30.0)
     connector_validate_parser.set_defaults(handler=command_connector_validate)
 
     model_export_parser = subparsers.add_parser(
@@ -610,8 +609,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--tolerance must be non-negative")
     if getattr(args, "abs_tolerance", 0.0) < 0:
         parser.error("--abs-tolerance must be non-negative")
-    if getattr(args, "timeout", 1.0) <= 0:
-        parser.error("--timeout must be greater than zero")
     handler: Callable[[Any], int] = args.handler
     try:
         return handler(args)

@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import csv
 import re
-from collections.abc import Iterable
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -49,7 +48,6 @@ class XeroRow(BaseModel):
 
 class XeroReport(BaseModel):
     rows: list[XeroRow] = Field(default_factory=list)
-    gst_inclusive: bool | None = None  # None = undetermined; see detect_gst_inclusive
 
     def by_account(self) -> dict[str, float]:
         """{account: amount} summed across codes and tracking options."""
@@ -66,16 +64,6 @@ class XeroReport(BaseModel):
             splits.setdefault(key, {})
             splits[key][row.account] = splits[key].get(row.account, 0.0) + row.amount
         return splits
-
-    def unmapped_tracking(self, allowed: Iterable[str] = ()) -> list[str]:
-        """Tracking options present in the report but not in `allowed`.
-
-        `allowed` is the tracking category's mapped option list, supplied
-        by the caller from generate-time config; the default (nothing
-        mapped yet) returns every option in the file. Untracked rows are
-        not options - surface those from ``by_tracking()['(untracked)']``.
-        """
-        return sorted({r.tracking_option for r in self.rows} - set(allowed) - {""})
 
 
 # Report-layout rows that are derived, not posted: skipped along with every

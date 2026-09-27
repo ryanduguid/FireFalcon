@@ -42,7 +42,6 @@ class GstAssumptions(BaseModel):
     bas_cycle: BasCycle = BasCycle.QUARTERLY
     taxable_sales_pct: float = Field(default=1.0, ge=0, le=1)
     creditable_purchases_pct: float = Field(default=1.0, ge=0, le=1)
-    agent_lodgment: bool = False  # tax/BAS agent program extensions not modelled; flag only
     # None uses the bundled rate; explicit rates are forecast scenarios.
     gst_rate: float | None = Field(default=None, ge=0, allow_inf_nan=False)
 

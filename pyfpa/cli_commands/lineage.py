@@ -334,7 +334,6 @@ def command_connector_validate(args: argparse.Namespace) -> int:
             root,
             name=args.name,
             mappings=load_mapping_registry(workspace.mapping_registry_path),
-            timeout=args.timeout,
         )
     except Exception as exc:
         return _failure(
