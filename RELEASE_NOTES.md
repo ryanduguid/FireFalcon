@@ -1,4 +1,57 @@
-# Unreleased
+# v0.1.2
+
+Breaking for scripts written against 0.1.1:
+
+- `reconcile-source` and `reconcile_account_table` agree a target within half a cent
+  by default (`--abs-tolerance 0.005`), and the relative `--tolerance` is off unless
+  set. The old 1% default passed 3,000 cross-mapped between two revenue targets.
+  Whole-dollar controls need `--abs-tolerance 0.5`.
+- `EntityConfig.tax_rate` is required; the old 21% default was the US federal rate.
+  `start_month` must be `YYYY-MM`, and date text given to payroll, GST, rate lookups and
+  `format_au_date` must be ISO: day-first text such as `1/10/2026` is refused instead
+  of being read as January.
+- Config and 13-week cash files refuse unknown keys (`EntityConfig` and its parts,
+  `Cash13Config`, `WeeklyFlow`), and opex amounts cannot be negative.
+- `read_xero_report` refuses a report whose amount columns are not periods, such as a
+  comparison or tracking export, unless `tracking_comparison=True` is set for a
+  standard P&L with one tracking option per column. It also refuses a `Total X` row
+  with no `X` heading above it and, in the flat layout, a row with more fields than
+  the header, a filled row with no account, and unnamed or repeated columns.
+  `pyfpa.io.xero_au.from_xero` is removed.
+- Payroll tax and super guarantee lookups after 30 June 2027, the date those tables
+  were verified to, raise until the tables are verified again.
+- `fetch_abs_series` reads its key only from `ABS_API_KEY` and no longer takes an
+  `api_key` argument. Its keys map to the ABS Indicator API's `_H` dataflows, a
+  response in the wrong frequency is refused, and retail trade is history only: the
+  ABS ceased it with the June 2025 period.
+- Cross-client promotion is default-deny (below), `seed_from_library` requires
+  `company_root` and `seeded_at`, and `promote_challenger` requires `objective` and
+  `approved_at`.
+- `verify_workbook` requires every expected column, a matching period header and zero
+  `check_*` rows. `recover_actuals` raises for a line it cannot recover instead of
+  skipping it, `score_forecast` skips zero-weight lines and refuses all-zero weights,
+  and `pyfpa.memory.diagnostics.validate_workspace` is removed in favour of
+  `Workspace.validate`.
+
+Figures that change:
+
+- A BAS due date on a weekend moves to the following Monday, and a leading partial
+  quarter settles the months the series holds instead of being dropped.
+- Workers compensation includes bonuses, as every state's wage definition does.
+- `fy_summary` orders periods by date, and a divestiture keeps cogs consistent with
+  gross profit.
+
+New:
+
+- 13-week cash scenarios: `Scenario`, `apply_scenario`, `compare_scenarios` and
+  `load_cash13_scenarios`.
+- `pyfpa.au.depreciation` reads accounting-depreciation evidence files, refuses one
+  whose producer rejected it or whose digest no longer matches, and spreads a charge
+  in whole cents with expense and asset purchases kept apart.
+- `verify_structure` checks a workbook's layout contract, and `model_to_excel` writes
+  `check_*` self-check rows.
+
+Cross-client promotion:
 
 - Cross-client promotion in `pyfpa/portfolio` is default-deny. `promote_prior` and
   `promote_skill` refuse unless a practitioner has recorded a `PromotionApproval` for
