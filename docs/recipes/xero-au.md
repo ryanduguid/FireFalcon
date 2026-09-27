@@ -165,7 +165,7 @@ python3 -m pyfpa.cli reconcile-source <company-root> --source-id xero-au \
   --expected-json '<reviewed target-to-total JSON object>'
 ```
 
-- Expected totals must come from an independently reviewed control, not a copy of the mapped totals. Tolerance is a fraction: `0.01` means 1%.
+- Expected totals must come from an independently reviewed control, not a copy of the mapped totals. A target agrees when its variance is within `--abs-tolerance` (default `0.005`, so only sub-cent differences pass). Whole-dollar controls, such as BAS labels, rounded statements or Xero reports with decimals cleared, need `--abs-tolerance 0.5`. `--tolerance` adds a relative allowance as a fraction (`0.01` means 1%) and is off by default, because a relative allowance hides amounts cross-mapped between targets.
 - Fails on missing expected totals, duplicate account names in the export, unmapped accounts, or
   out-of-tolerance totals. That is the point: unmapped is surfaced, not
   defaulted.

@@ -231,9 +231,16 @@ def reconcile_account_table(
     account_column: str,
     amount_column: str,
     expected: dict[str, float] | None = None,
-    tolerance: float = 0.01,
+    tolerance: float = 0.0,
+    abs_tolerance: float = 0.005,
 ) -> dict[str, Any]:
-    """Check mapping coverage and optional totals; tolerance is a relative fraction.
+    """Check mapping coverage and optional totals.
+
+    A target agrees when its variance is within abs_tolerance, in currency units
+    (half a cent by default, so float noise passes and a one-cent gap does not),
+    or within tolerance, a relative fraction that is off unless set. A relative
+    default hid cross-mapped amounts: 3,000 moved between two revenue targets
+    passed at 1%. Whole-dollar controls need abs_tolerance=0.5.
 
     Without expected totals, passed reports mapping coverage only. The CLI
     requires expected_provided before reporting successful reconciliation.
@@ -293,8 +300,12 @@ def reconcile_account_table(
         expected_value = float(expected[target]) if target in expected else None
         variance = mapped - expected_value if mapped is not None and expected_value is not None else None
         variance_pct = variance / expected_value if expected_value and variance is not None else None
-        within = (mapped == expected_value if expected_value == 0
-                  else variance_pct is not None and abs(variance_pct) <= tolerance)
+        # Rounded to 9 places so float representation error cannot push an
+        # exact boundary difference, such as half a cent, outside the limit.
+        within = variance is not None and (
+            round(abs(variance), 9) <= abs_tolerance
+            or (tolerance > 0 and variance_pct is not None and abs(variance_pct) <= tolerance)
+        )
         variances[target] = {
             "mapped": mapped,
             "expected": expected_value,

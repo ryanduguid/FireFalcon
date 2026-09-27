@@ -472,7 +472,8 @@ def build_parser() -> JsonArgumentParser:
     reconcile_parser.add_argument("--account-column", default="Account")
     reconcile_parser.add_argument("--amount-column", default="Amount")
     reconcile_parser.add_argument("--expected-json")
-    reconcile_parser.add_argument("--tolerance", type=float, default=0.01, help="Fractional variance tolerance; 0.01 means 1 percent")
+    reconcile_parser.add_argument("--tolerance", type=float, default=0.0, help="Relative variance tolerance as a fraction, off by default; 0.01 means 1 percent")
+    reconcile_parser.add_argument("--abs-tolerance", type=float, default=0.005, help="Absolute variance tolerance in currency units; the default 0.005 accepts only sub-cent differences; use 0.5 for whole-dollar controls")
     reconcile_parser.add_argument("--allow-unmapped", action="store_true")
     reconcile_parser.set_defaults(handler=command_reconcile_source)
 
@@ -607,6 +608,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--limit must be at least 1")
     if getattr(args, "tolerance", 0.0) < 0:
         parser.error("--tolerance must be non-negative")
+    if getattr(args, "abs_tolerance", 0.0) < 0:
+        parser.error("--abs-tolerance must be non-negative")
     if getattr(args, "timeout", 1.0) <= 0:
         parser.error("--timeout must be greater than zero")
     handler: Callable[[Any], int] = args.handler
