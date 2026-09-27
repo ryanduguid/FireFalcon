@@ -26,6 +26,7 @@ from typing import Any
 import pandas as pd
 from pydantic import BaseModel, Field
 
+from pyfpa.au.calendar import require_iso
 from pyfpa.au.rates import load_gst_bas_data
 from pyfpa.cash13.schemas import WeeklyFlow
 
@@ -177,6 +178,8 @@ def gst_weekly_flows(
     due inside the window. Payments become disbursements; refunds
     become receipts. Settlements outside the window are dropped.
     """
+    if isinstance(window_start, str):
+        window_start = require_iso(window_start, "window_start")
     start = pd.Timestamp(window_start).date()
     receipts: list[WeeklyFlow] = []
     disbursements: list[WeeklyFlow] = []

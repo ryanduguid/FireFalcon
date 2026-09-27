@@ -20,6 +20,8 @@ import pandas as pd
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
+from pyfpa.au.calendar import require_iso
+
 
 class RateEntry(BaseModel):
     """One effective-dated value in a rate schedule."""
@@ -154,5 +156,5 @@ def _as_date(when: date | str | pd.Period) -> date:
     if isinstance(when, pd.Period):
         return cast(date, when.to_timestamp(how="start").date())
     if isinstance(when, str):
-        return cast(date, pd.Timestamp(when).date())
+        return cast(date, pd.Timestamp(require_iso(when, "rate date")).date())
     return when

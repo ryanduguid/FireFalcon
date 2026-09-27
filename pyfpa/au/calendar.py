@@ -11,7 +11,21 @@ matching the kernel's monthly convention in ``pyfpa.models.periods``.
 
 from __future__ import annotations
 
+import re
+
 import pandas as pd
+
+# The format EntityConfig documents for months, optionally with a day. pandas
+# reads "1/10/2026" month first, as January, so Australian day-first text is
+# refused rather than silently read as a different date.
+ISO_MONTH_OR_DATE = re.compile(r"\d{4}-\d{2}(-\d{2})?")
+
+
+def require_iso(text: str, what: str) -> str:
+    """Return ``text`` when it is YYYY-MM or YYYY-MM-DD; refuse any other form."""
+    if not ISO_MONTH_OR_DATE.fullmatch(text.strip()):
+        raise ValueError(f"{what} must be an ISO date, YYYY-MM or YYYY-MM-DD, got {text!r}")
+    return text.strip()
 
 
 def _as_period(period: str | pd.Period) -> pd.Period:
@@ -59,7 +73,9 @@ def fy_month_range(fy: int) -> pd.PeriodIndex:
 
 
 def format_au_date(value: pd.Timestamp | str) -> str:
-    """Render a date as dd/mm/yyyy."""
+    """Render a date as dd/mm/yyyy. Text input must be ISO."""
+    if isinstance(value, str):
+        value = require_iso(value, "date")
     return str(pd.Timestamp(value).strftime("%d/%m/%Y"))
 
 
