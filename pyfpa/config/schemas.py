@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from typing import Literal
 
@@ -43,7 +44,10 @@ class Channel(_ConfigModel):
     def _weights_positive(cls, v: list[float]) -> list[float]:
         if any(weight < 0 for weight in v):
             raise ValueError("seasonality weights must be non-negative")
-        if sum(v) <= 0:
+        total = sum(v)
+        if not math.isfinite(total):
+            raise ValueError("seasonality weights must sum to a finite number")
+        if total <= 0:
             raise ValueError("seasonality weights must sum to a positive number")
         return v
 
