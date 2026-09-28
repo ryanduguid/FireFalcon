@@ -73,6 +73,26 @@ def test_forecast_rejects_growth_overflow(finite_config):
         cashflow_from_config(finite_config)
 
 
+def test_forecast_reports_growth_exponent_overflow(finite_config):
+    finite_config.channels[0].annual_revenue = 1e-200
+    finite_config.channels[0].growth_rate = 1e160
+    finite_config.horizon_months = 36
+
+    with pytest.raises(ValueError, match="^revenue exceeds the supported numeric range$"):
+        cashflow_from_config(finite_config)
+
+
+def test_large_finite_growth_is_allowed(finite_config):
+    finite_config.channels[0].annual_revenue = 1e-200
+    finite_config.channels[0].growth_rate = 1e160
+    finite_config.horizon_months = 24
+
+    forecast = cashflow_from_config(finite_config)
+
+    assert all(math.isfinite(value) for value in forecast.to_numpy().flat)
+    assert forecast["revenue"].iloc[12] == pytest.approx(1e-40 / 12, rel=1e-12, abs=0)
+
+
 def test_forecast_rejects_intermediate_cost_overflow(finite_config):
     finite_config.opex = [
         OpexLine(name=name, kind="fixed", monthly_amount=1e308)
@@ -151,3 +171,14 @@ def test_receipt_shift_preserves_unrelated_columns(finite_config):
     assert shifted["ending_cash"].tolist() == pytest.approx(
         [50, 150, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
     )
+
+
+def test_receipt_shift_reports_missing_rebuilt_cash_values(finite_config):
+    forecast = cashflow_from_config(finite_config).astype({"capex": "Float64"})
+    forecast.loc[forecast.index[0], "capex"] = pd.NA
+    original = forecast.copy(deep=True)
+
+    with pytest.raises(ValueError, match="^free_cash_flow contains non-finite values$"):
+        apply_receipt_delay(forecast, "2026-01", "2026-03", 50)
+
+    pd.testing.assert_frame_equal(forecast, original)

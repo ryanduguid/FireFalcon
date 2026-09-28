@@ -32,7 +32,7 @@ def _tax_series(pretax: pd.Series, opening_nol: float, tax_rate: float) -> pd.Se
 
 def _require_finite_columns(frame: pd.DataFrame, columns: Iterable[str]) -> None:
     for column in columns:
-        if not all(math.isfinite(value) for value in frame[column]):
+        if frame[column].isna().any() or not all(math.isfinite(value) for value in frame[column]):
             raise ValueError(f"{column} contains non-finite values")
 
 
@@ -42,7 +42,10 @@ def cashflow_from_config(cfg: EntityConfig) -> pd.DataFrame:
     for channel in cfg.channels:
         if not math.isfinite(sum(channel.seasonality)):
             raise ValueError("seasonality weights must sum to a finite number")
-    revenue = revenue_from_config(cfg)
+    try:
+        revenue = revenue_from_config(cfg)
+    except OverflowError as exc:
+        raise ValueError("revenue exceeds the supported numeric range") from exc
     cogs = cogs_from_config(cfg, revenue)
     opex = opex_from_config(cfg, revenue)
     wc = working_capital_from_config(cfg, revenue, cogs)
