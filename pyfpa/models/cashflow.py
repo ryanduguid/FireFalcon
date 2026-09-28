@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
 from pyfpa.config.schemas import EntityConfig
@@ -84,13 +86,18 @@ def apply_receipt_delay(
     A receipt that slips is a working-capital timing event: ``wc_cash_impact``
     falls by ``amount`` in ``month`` and rises by ``amount`` in ``to_month``.
     The cash rows derived from it are rebuilt with the definitions above, and
-    every P&L line is unchanged.
+    every P&L line is unchanged. The amount must be finite. A shift within one
+    month returns an unchanged, independent copy of the forecast.
     """
     labels = [str(period) for period in forecast.index]
     if month not in labels:
         raise ValueError(f"month {month} is not a forecast period")
     if to_month not in labels:
         raise ValueError(f"to_month {to_month} is not a forecast period")
+    if not math.isfinite(amount):
+        raise ValueError("amount must be finite")
+    if month == to_month:
+        return forecast.copy()
 
     out = forecast.copy()
     opening_cash = float(out["ending_cash"].iloc[0] - out["change_in_cash"].iloc[0])
