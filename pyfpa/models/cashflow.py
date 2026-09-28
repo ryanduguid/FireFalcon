@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 
 import pandas as pd
 
@@ -29,8 +30,14 @@ def _tax_series(pretax: pd.Series, opening_nol: float, tax_rate: float) -> pd.Se
     return pd.Series(out, index=pretax.index)
 
 
+def _require_finite_columns(frame: pd.DataFrame, columns: Iterable[str]) -> None:
+    for column in columns:
+        if not all(math.isfinite(value) for value in frame[column]):
+            raise ValueError(f"{column} contains non-finite values")
+
+
 def cashflow_from_config(cfg: EntityConfig) -> pd.DataFrame:
-    """Compose all model layers into the full monthly forecast (P&L + cash)."""
+    """Compose the monthly forecast, raising ValueError for non-finite results."""
     revenue = revenue_from_config(cfg)
     cogs = cogs_from_config(cfg, revenue)
     opex = opex_from_config(cfg, revenue)
@@ -54,7 +61,7 @@ def cashflow_from_config(cfg: EntityConfig) -> pd.DataFrame:
     change_in_cash = free_cash_flow - debt["principal"]
     ending_cash = change_in_cash.cumsum() + cfg.opening_balances.cash
 
-    return pd.DataFrame(
+    forecast = pd.DataFrame(
         {
             "revenue": revenue["total"],
             "cogs": cogs["total"],
@@ -76,6 +83,8 @@ def cashflow_from_config(cfg: EntityConfig) -> pd.DataFrame:
         },
         index=revenue.index,
     )
+    _require_finite_columns(forecast, forecast.columns)
+    return forecast
 
 
 def apply_receipt_delay(
@@ -88,6 +97,7 @@ def apply_receipt_delay(
     The cash rows derived from it are rebuilt with the definitions above, and
     every P&L line is unchanged. The amount must be finite. A shift within one
     month returns an unchanged, independent copy of the forecast.
+    Raise ValueError if a rebuilt cash column contains a non-finite result.
     """
     labels = [str(period) for period in forecast.index]
     if month not in labels:
@@ -112,4 +122,8 @@ def apply_receipt_delay(
     out["free_cash_flow"] = out["operating_cash_flow"] - out["capex"]
     out["change_in_cash"] = out["free_cash_flow"] - out["principal"]
     out["ending_cash"] = out["change_in_cash"].cumsum() + opening_cash
+    _require_finite_columns(out, (
+        "wc_cash_impact", "operating_cash_flow", "free_cash_flow",
+        "change_in_cash", "ending_cash",
+    ))
     return out
