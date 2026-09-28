@@ -8,13 +8,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class _ConfigModel(BaseModel):
-    """Base for the config contract: an unrecognised key is a mistake.
+    """Configuration numbers must be finite and keys must be recognised.
 
     Accepting extras let a misspelt optional field fall back to its default
     without a word, so a config that looked applied was quietly ignored.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
 def _reject_reserved_name(v: str) -> str:
