@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pytest
@@ -6,7 +7,10 @@ from pydantic import ValidationError
 from pyfpa.config.loader import load_config
 from pyfpa.config.schemas import (
     Channel,
+    DebtInstrument,
     EntityConfig,
+    OpeningBalances,
+    OpexLine,
     WorkingCapitalConfig,
 )
 
@@ -163,3 +167,71 @@ def test_start_month_requires_the_exact_format(value: str) -> None:
 
 def test_start_month_still_accepts_the_documented_format() -> None:
     assert EntityConfig(**{**_minimal_kwargs(), "start_month": "2026-07"}).start_month == "2026-07"
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("model,valid,fields", [
+    (Channel, {"name": "Sales", "annual_revenue": 1200, "seasonality": [1.0] * 12,
+               "cogs_pct": 0.5}, ("annual_revenue", "growth_rate", "cogs_pct")),
+    (OpexLine, {"name": "Rent", "kind": "fixed"}, ("monthly_amount", "pct_of_revenue")),
+    (DebtInstrument, {"name": "Loan", "kind": "term_loan", "opening_balance": 100,
+                      "annual_rate": 0.05}, ("opening_balance", "annual_rate", "monthly_principal")),
+    (WorkingCapitalConfig, {"dso_days": 0, "dpo_days": 0, "dio_days": 0},
+     ("dso_days", "dpo_days", "dio_days")),
+    (OpeningBalances, {}, ("cash", "ar", "ap", "inventory", "nol")),
+    (EntityConfig, _minimal_kwargs(), ("tax_rate", "da_monthly", "capex_monthly")),
+])
+def test_config_models_reject_non_finite_numbers(model, valid, fields, value):
+    for field in fields:
+        with pytest.raises(ValidationError) as error:
+            model.model_validate({**valid, field: value})
+        assert error.value.errors()[0]["loc"] == (field,)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("position", [0, 11])
+def test_seasonality_rejects_non_finite_items(value, position):
+    weights = [1.0] * 12
+    weights[position] = value
+    with pytest.raises(ValidationError):
+        Channel(name="Sales", annual_revenue=1200, seasonality=weights, cogs_pct=0.5)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("field", ["opening_balances", "channels"])
+def test_raw_nested_config_rejects_non_finite_numbers(value, field):
+    raw = EntityConfig(**_minimal_kwargs()).model_dump()
+    if field == "opening_balances":
+        raw[field]["cash"] = value
+    else:
+        raw[field][0]["seasonality"][0] = value
+    with pytest.raises(ValidationError) as error:
+        EntityConfig.model_validate(raw)
+    assert error.value.errors()[0]["loc"][0] == field
+
+
+@pytest.mark.parametrize("value", [".nan", ".inf", "-.inf"])
+def test_yaml_non_finite_numbers_are_rejected(tmp_path, value):
+    source = _MISSPELLABLE_YAML.format(growth_key="growth_rate").replace("cash: 0", f"cash: {value}")
+    path = tmp_path / "non-finite.yaml"
+    path.write_text(source, encoding="utf-8")
+    with pytest.raises(ValidationError) as error:
+        load_config(path)
+    assert error.value.errors()[0]["loc"] == ("opening_balances", "cash")
+
+
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity", "1e10000"])
+def test_text_cannot_coerce_to_a_non_finite_balance(value):
+    with pytest.raises(ValidationError):
+        OpeningBalances(cash=value)
+
+
+@pytest.mark.parametrize("value", [0.0, -50.0, 50.0, sys.float_info.max, -sys.float_info.max])
+def test_finite_opening_balances_keep_their_existing_range(value):
+    assert OpeningBalances(cash=value).cash == value
+
+
+@pytest.mark.parametrize("value", [0.0, 1200.0, sys.float_info.max])
+def test_finite_revenue_has_no_new_ceiling(value):
+    channel = Channel(name="Sales", annual_revenue=value, seasonality=[1.0] * 12, cogs_pct=0.5)
+    assert channel.annual_revenue == value
