@@ -8,6 +8,7 @@ from pyfpa.config.schemas import (
     Channel,
     EntityConfig,
     OpeningBalances,
+    OpexLine,
     WorkingCapitalConfig,
 )
 from pyfpa.models.cashflow import apply_receipt_delay, cashflow_from_config
@@ -29,6 +30,17 @@ def finite_config():
 def test_seasonality_rejects_overflowed_total(weights):
     with pytest.raises(ValidationError, match="seasonality weights must sum to a finite number"):
         Channel(name="Sales", annual_revenue=1200, seasonality=weights, cogs_pct=0)
+
+
+@pytest.mark.parametrize("in_place", [False, True])
+def test_forecast_rejects_mutated_seasonality_total(finite_config, in_place):
+    if in_place:
+        finite_config.channels[0].seasonality[:] = [1e308] * 12
+    else:
+        finite_config.channels[0].seasonality = [1e308] * 12
+
+    with pytest.raises(ValueError, match="seasonality weights must sum to a finite number"):
+        cashflow_from_config(finite_config)
 
 
 def test_large_finite_seasonality_preserves_revenue(finite_config):
@@ -61,6 +73,16 @@ def test_forecast_rejects_growth_overflow(finite_config):
         cashflow_from_config(finite_config)
 
 
+def test_forecast_rejects_intermediate_cost_overflow(finite_config):
+    finite_config.opex = [
+        OpexLine(name=name, kind="fixed", monthly_amount=1e308)
+        for name in ("Synthetic cost A", "Synthetic cost B")
+    ]
+
+    with pytest.raises(ValueError, match="^opex contains non-finite values$"):
+        cashflow_from_config(finite_config)
+
+
 @pytest.mark.parametrize(
     "annual_revenue, opening_cash, capex",
     [(1e308, 1e308, 0), (1200, -1e308, 1e307)],
@@ -87,6 +109,20 @@ def test_receipt_shift_rejects_cash_overflow_without_mutating_input(
     with pytest.raises(ValueError, match="^ending_cash contains non-finite values$"):
         apply_receipt_delay(forecast, "2026-01", "2026-03", amount)
 
+    pd.testing.assert_frame_equal(forecast, original)
+
+
+@pytest.mark.parametrize("amount", [1e308, -1e308])
+def test_large_finite_receipt_shift_is_allowed(finite_config, amount):
+    finite_config.channels[0].annual_revenue = 0
+    forecast = cashflow_from_config(finite_config)
+    original = forecast.copy(deep=True)
+
+    shifted = apply_receipt_delay(forecast, "2026-01", "2026-03", amount)
+
+    assert all(math.isfinite(value) for value in shifted.to_numpy().flat)
+    assert shifted["ending_cash"].tolist() == pytest.approx([-amount, -amount] + [0.0] * 10)
+    assert shifted["ending_cash"].iloc[-1] == forecast["ending_cash"].iloc[-1]
     pd.testing.assert_frame_equal(forecast, original)
 
 
