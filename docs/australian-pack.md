@@ -8,6 +8,11 @@ data-access-recipe and industry-pack paths in CONTRIBUTING:
 - **Payroll** - super guarantee, state payroll tax (all 8
   jurisdictions, effective-dated), workers comp, leave provisions,
   contractors (`pyfpa.au.payroll`)
+- **Payroll settlement** - dated obligation, due and cash events for each
+  payroll cost except leave provisions, which stay accruals, with month-end
+  liabilities and 13-week flows derived from them; net wages fall due on each
+  payday and the caller passes the due-date rule for every other cost
+  (`pyfpa.au.payroll_settlement`)
 - **GST/BAS** - net GST from GST-exclusive series, monthly and
   quarterly settlement schedules, straight into the 13-week model
   (`pyfpa.au.gst`)
