@@ -54,7 +54,8 @@ def _income_year_tax(pretax: pd.Series, opening_loss: float, tax_rate: float,
                 unknown += -to_date
             to_date = provided = 0.0
         to_date += value
-        if unknown and to_date > available:
+        # At a nil rate the loss cannot change any tax, so its deductibility is moot.
+        if unknown and tax_rate and to_date > available:
             raise ValueError(
                 f"a forecast tax loss of {unknown:,.2f} would reduce tax in the income year from {period}; "
                 "set income_tax.forecast_losses_deductible (Division 165 of the ITAA 1997)")
