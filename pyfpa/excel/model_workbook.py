@@ -102,8 +102,11 @@ def _build_assumptions(
             nc(nm, line.pct_of_revenue, PERCENT_FORMAT)
         opex_names.append(nm)
 
+    dso_days = cfg.working_capital.dso_days
+    if dso_days is None:  # model_to_excel refuses a collection profile before this
+        raise ValueError("the Excel export needs dso_days")
     for name, val, fmt in [
-        ("dso_days", cfg.working_capital.dso_days, DAYS_FORMAT),
+        ("dso_days", dso_days, DAYS_FORMAT),
         ("dio_days", cfg.working_capital.dio_days, DAYS_FORMAT),
         ("dpo_days", cfg.working_capital.dpo_days, DAYS_FORMAT),
         ("tax_rate", cfg.tax_rate, PERCENT_FORMAT),
@@ -521,6 +524,10 @@ def model_to_excel(cfg: EntityConfig, path: str | Path) -> None:
     written, so the workbook never shows a forecast the engine refuses, such as
     one whose balances imply negative receipts.
     """
+    if cfg.working_capital.collection_profile is not None:
+        # Refuse before creating anything: the workbook's receivables formulas are
+        # days-based and would not reproduce the engine's profile receipts.
+        raise ValueError("the Excel export does not support collection_profile; its receivables are days-based")
     cashflow_from_config(cfg)
     wb = Workbook()
     ws_assump = wb.active
