@@ -104,8 +104,12 @@ credits require separate assessment; the zero-credit example does not decide the
 `monthly_gst` applies supplied proportions; it does not classify transactions or
 attribute invoices and payments to tax periods. Reconcile cash-basis inputs before
 using them. The schedule uses original BAS due dates, moved from a weekend to the
-Monday but not for public holidays or agent extensions; a refund on that date is
-a forecast assumption, not a receipt promise. A period ending after
+Monday but not past a public holiday or for agent extensions. Under Taxation
+Administration Act 1953 s 8AAZMB a public holiday for the whole of any State or
+Territory is not a business day either: 28 February 2027 falls on a Sunday and
+Monday 1 March is Labour Day throughout Western Australia, so that payment is
+due on Tuesday 2 March, a day after the date the schedule gives. A refund on the
+due date is a forecast assumption, not a receipt promise. A period ending after
 `reviewed_until` in `gst_bas.yaml` (30 June 2027) raises until the dates are
 re-checked. Explicit rate overrides must be finite and non-negative. Zero remains
 available for scenario modelling; it does not establish a GST exemption.
