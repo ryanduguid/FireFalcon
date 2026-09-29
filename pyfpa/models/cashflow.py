@@ -92,6 +92,12 @@ def cashflow_from_config(cfg: EntityConfig) -> pd.DataFrame:
 
     gross_profit = revenue["total"] - cogs["total"]
     ebitda = gross_profit - opex["total"]
+    # Bad debts are a non-cash expense: working capital adds them back, so cash
+    # stays the receipts. The pretax proxy takes them when recognised, earlier
+    # than ITAA 1997 s 25-35 allows a deduction (on writing the debt off).
+    bad_debts = wc["bad_debts"] if "bad_debts" in wc.columns else None
+    if bad_debts is not None:
+        ebitda = ebitda - bad_debts
     ebit = ebitda - da                 # D&A is a real (non-cash) expense in the P&L...
     interest = debt["interest"]
     pretax = ebit - interest
@@ -134,6 +140,8 @@ def cashflow_from_config(cfg: EntityConfig) -> pd.DataFrame:
         },
         index=revenue.index,
     )
+    if bad_debts is not None:
+        forecast.insert(list(forecast.columns).index("opex") + 1, "bad_debts", bad_debts)
     if cfg.income_tax is not None:
         forecast.insert(list(forecast.columns).index("tax") + 1, "tax_paid", tax_paid)
     _require_finite_columns(forecast, forecast.columns)
