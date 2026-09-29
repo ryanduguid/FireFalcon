@@ -40,9 +40,13 @@ def test_edge_config_nol_debt_seasonality_reproduces_engine(tmp_path):
              "annual_rate": 0.09, "monthly_principal": 25_000.0},
             {"name": "loc", "kind": "loc", "opening_balance": 150_000.0, "annual_rate": 0.11},
         ],
-        "working_capital": {"dso_days": 38.0, "dpo_days": 42.0, "dio_days": 75.0},
+        # Inventory days and the opening inventory keep every implied receipt, purchase
+        # and supplier payment non-negative. At the earlier 75 days the seasonal falls
+        # in cost of sales implied purchases as low as -203,650, which the working
+        # capital model now refuses.
+        "working_capital": {"dso_days": 38.0, "dpo_days": 42.0, "dio_days": 20.0},
         "opening_balances": {"cash": 25_000.0, "ar": 180_000.0, "ap": 110_000.0,
-                              "inventory": 260_000.0, "nol": 500_000.0},
+                              "inventory": 125_000.0, "nol": 500_000.0},
         "da_monthly": 6_000.0, "capex_monthly": 9_000.0,
     })
     path = tmp_path / "edge.xlsx"

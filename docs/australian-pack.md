@@ -15,6 +15,11 @@ data-access-recipe and industry-pack paths in CONTRIBUTING:
   (`pyfpa.au.payroll_settlement`)
   - PAYG withholding due dates under Taxation Administration Act 1953,
     Schedule 1, section 16-75 (`pyfpa.au.paygw`)
+  - super guarantee due dates under Payday Super and the quarterly rules
+    before it, on a business-day calendar the caller passes
+    (`pyfpa.au.super_guarantee`)
+  - payroll tax due dates for monthly lodgers in all eight jurisdictions
+    (`pyfpa.au.payroll_tax`)
 - **GST/BAS** - net GST from GST-exclusive series, monthly and
   quarterly settlement schedules, straight into the 13-week model
   (`pyfpa.au.gst`)
@@ -98,6 +103,19 @@ these examples. Authority checked on 10 September 2026: [GST Act, compilation
 dated 1 January 2026](https://www.legislation.gov.au/C2004A00446/2026-01-01/2026-01-01/text/original/epub/OEBPS/document_1/document_1.html),
 ss 9-70, 11-5, 11-15, 11-25 and 11-30. Financial-supply exceptions and reduced
 credits require separate assessment; the zero-credit example does not decide them.
+
+On the cash basis, GST follows payment. GST on a sale belongs to the period in
+which payment is received, and a GST credit to the period in which payment is
+made, each only for the part paid. A business with aggregated turnover under
+$10 million, among others, can choose this method. Pass the month's receipts and
+its payments for all purchases, both excluding GST, to `monthly_gst` in place of
+revenue and purchases: `taxable_sales_pct` and `creditable_purchases_pct` then
+apply to them as they do to invoiced amounts, so do not filter the payments to
+creditable purchases first. With `working_capital_from_config`, receipts are
+revenue less `d_ar`; with `bad_debt_share` set, use the frame's `receipts`
+column instead, because `d_ar` then also falls by the bad debts, which are
+never received. Source: ATO, [Choosing an accounting method for GST](https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/accounting-for-gst-in-your-business/choosing-an-accounting-method)
+(last updated 14 September 2026).
 
 `monthly_gst` applies supplied proportions; it does not classify transactions or
 attribute invoices and payments to tax periods. Reconcile cash-basis inputs before

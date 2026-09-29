@@ -114,6 +114,26 @@ def require_bas_dates_reviewed(period_end: date) -> None:
     _require_reviewed(_reviewed_until(load_gst_bas_data(), "gst_bas.yaml"), period_end)
 
 
+def load_super_guarantee_data() -> dict[str, Any]:
+    """Super guarantee due-date rules; the rate schedule loads through load_super_guarantee_table."""
+    return _load_yaml("super_guarantee.yaml")
+
+
+def require_super_dates_reviewed(payday: date) -> None:
+    """Raise when a super due date is sought for a payday after super_guarantee.yaml's reviewed_until."""
+    _require_reviewed(_reviewed_until(load_super_guarantee_data(), "super_guarantee.yaml"), payday)
+
+
+def load_payroll_tax_data() -> dict[str, Any]:
+    """Payroll tax due-date rules; the rate entries load through load_payroll_tax_table."""
+    return _load_yaml("payroll_tax.yaml")
+
+
+def require_payroll_tax_dates_reviewed(month_end: date) -> None:
+    """Raise when a payroll tax due date is sought for a month ending after payroll_tax.yaml's reviewed_until."""
+    _require_reviewed(_reviewed_until(load_payroll_tax_data(), "payroll_tax.yaml"), month_end)
+
+
 def _require_reviewed(reviewed_until: date | None, when_date: date) -> None:
     if reviewed_until is not None and when_date > reviewed_until:
         raise ValueError(
