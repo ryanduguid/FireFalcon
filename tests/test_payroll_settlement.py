@@ -119,16 +119,18 @@ def test_closing_liabilities_roll_forward_exactly_and_cash_adds_up_to_the_events
 
 
 def test_weekly_flows_hold_only_payments_inside_the_window():
-    events = _events()
-    # The window runs from Monday 29 June for 4 weeks, to Sunday 26 July.
+    def paid(on: date, amount: float) -> SettlementEvent:
+        return SettlementEvent("payroll_tax", pd.Period("2026-05", freq="M"), date(2026, 5, 31), on, on, amount)
+
+    # The window runs from Monday 29 June for 4 weeks, to Sunday 26 July. Each
+    # amount is unique, so the result shows which payment landed in which week.
+    events = [paid(date(2026, 6, 28), 1.0), paid(date(2026, 6, 29), 2.0), paid(date(2026, 7, 5), 3.0),
+              paid(date(2026, 7, 6), 4.0), paid(date(2026, 7, 26), 5.0), paid(date(2026, 7, 27), 6.0)]
     flows = settlement_weekly_flows(events, date(2026, 6, 29), weeks=4)
-    in_window = [e for e in events if date(2026, 6, 29) <= e.cash_date <= date(2026, 7, 26)]
-    assert sum(f.amount for f in flows) == pytest.approx(sum(e.amount for e in in_window))
-    assert all(1 <= f.start_week <= 4 for f in flows)
-    # July's first payday (Friday 3 July) is in week 1. The 31 July payday exists
-    # but falls after the window, so the equal sums above prove it was left out.
-    assert any(f.start_week == 1 and f.name.startswith("net_wages") for f in flows)
-    assert [e for e in events if e.cash_date == date(2026, 7, 31)]
+    assert [(f.name, f.amount, f.start_week) for f in flows] == [
+        ("payroll_tax 2026-05", 2.0, 1), ("payroll_tax 2026-05", 3.0, 1),
+        ("payroll_tax 2026-05", 4.0, 2), ("payroll_tax 2026-05", 5.0, 4),
+    ]
 
 
 def test_paying_early_moves_only_the_cash_date():
@@ -158,11 +160,44 @@ def test_obligations_before_the_first_month_open_the_liability():
         ({"rules": {**RULES, "payroll_tax": lambda d: d - pd.Timedelta(days=1)}}, "due before it arises"),
         ({"pay_days_before_due": {"payroll_tax": 40}}, "paid before it arises"),
         ({"rules": {**RULES, "overtime": seven_days_later}}, "unknown component"),
+        ({"pay_days_before_due": {"super_guarentee": 3}}, "pay_days_before_due names an unknown component"),
+        ({"pay_days_before_due": {"super_guarantee": -3}}, "whole days, 0 or more"),
+        ({"pay_days_before_due": {"super_guarantee": 1.5}}, "whole days, 0 or more"),
     ],
 )
 def test_settlement_refuses_what_it_cannot_place(kwargs, message):
     with pytest.raises(ValueError, match=message):
         _events(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "months",
+    [
+        pd.PeriodIndex([pd.Period("2026-06", freq="M"), pd.Period("2026-08", freq="M")]),
+        MONTHS[::-1],
+        MONTHS[:0],
+        pd.period_range("2026-06", "2026-08", freq="Q"),
+    ],
+    ids=["gap", "reversed", "empty", "quarterly"],
+)
+def test_monthly_settlement_refuses_months_that_do_not_run_consecutively(months):
+    # A skipped July would drop July's obligations and leave August's cash
+    # against nothing, so the closing liability could go negative.
+    with pytest.raises(ValueError, match="consecutively"):
+        monthly_settlement(_events(), months)
+
+
+@pytest.mark.parametrize(
+    ("component", "due", "cash", "message"),
+    [
+        ("overtime", date(2026, 7, 7), date(2026, 7, 7), "unknown component"),
+        ("payroll_tax", date(2026, 6, 29), date(2026, 7, 7), "falls due before it arises"),
+        ("payroll_tax", date(2026, 7, 7), date(2026, 6, 29), "paid before it arises"),
+    ],
+)
+def test_an_event_built_by_hand_keeps_the_same_rules(component, due, cash, message):
+    with pytest.raises(ValueError, match=message):
+        SettlementEvent(component, pd.Period("2026-06", freq="M"), date(2026, 6, 30), due, cash, 100.0)
 
 
 def test_components_with_no_cost_need_no_rule():
