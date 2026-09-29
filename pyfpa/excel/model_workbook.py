@@ -24,6 +24,7 @@ from pyfpa.excel.toolkit import (
     add_named_row,
     fill_formula_row,
 )
+from pyfpa.models.cashflow import cashflow_from_config
 from pyfpa.models.periods import month_index
 
 
@@ -517,11 +518,17 @@ def _build_model(
 
 
 def model_to_excel(cfg: EntityConfig, path: str | Path) -> None:
-    """Compile an EntityConfig into a 2-sheet live-formula workbook at `path`."""
+    """Compile an EntityConfig into a 2-sheet live-formula workbook at `path`.
+
+    The Python engine runs first and its ValueError propagates before anything is
+    written, so the workbook never shows a forecast the engine refuses, such as
+    one whose balances imply negative receipts.
+    """
     if cfg.working_capital.collection_profile is not None:
         # Refuse before creating anything: the workbook's receivables formulas are
         # days-based and would not reproduce the engine's profile receipts.
         raise ValueError("the Excel export does not support collection_profile; its receivables are days-based")
+    cashflow_from_config(cfg)
     wb = Workbook()
     ws_assump = wb.active
     ws_assump.title = "Assumptions"
