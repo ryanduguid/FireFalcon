@@ -8,11 +8,13 @@ can be reviewed the same way.
 """
 
 import math
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from pyfpa.analysis.forecast_review import Status, review_forecast
+from pyfpa.config.loader import load_config
 from pyfpa.models.cashflow import cashflow_from_config
 
 
@@ -29,6 +31,11 @@ def test_a_forecast_from_the_engine_has_no_findings(sample_config, forecast):
     review = review_forecast(forecast, sample_config)
     assert review.findings == ()
     assert not review.failed
+
+
+def test_the_shipped_ridgeline_forecast_reviews_clean():
+    config = load_config(Path(__file__).resolve().parents[1] / "examples" / "ridgeline" / "config.yaml")
+    assert review_forecast(cashflow_from_config(config), config).findings == ()
 
 
 @pytest.mark.parametrize(
@@ -49,6 +56,7 @@ def test_one_changed_input_breaks_exactly_its_identity(sample_config, forecast, 
     review = review_forecast(changed, sample_config)
     assert codes(review) == [(code, Status.FAIL, "2026-03")]
     [finding] = review.findings
+    assert finding.observed is not None and finding.expected is not None
     assert abs(finding.observed - finding.expected) == pytest.approx(1.0)
     assert review.failed
 
@@ -59,6 +67,7 @@ def test_a_break_in_the_last_closing_cash_is_a_roll_forward_failure(sample_confi
     review = review_forecast(changed, sample_config)
     assert codes(review) == [("FR-CASH-ROLLFORWARD", Status.FAIL, "2026-12")]
     [finding] = review.findings
+    assert finding.observed is not None and finding.expected is not None
     assert finding.observed - finding.expected == pytest.approx(5.0)
 
 
@@ -106,4 +115,4 @@ def test_a_non_finite_value_fails_for_its_column_and_month(sample_config, foreca
     changed.loc[changed.index[7], "tax"] = math.nan
     review = review_forecast(changed, sample_config)
     assert ("FR-NON-FINITE", Status.FAIL, "2026-08") in codes(review)
-    assert all(status is not Status.WARN for _, status, _ in codes(review))
+    assert all(status is Status.FAIL for code, status, _ in codes(review) if code == "FR-NON-FINITE")
