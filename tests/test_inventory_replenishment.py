@@ -51,6 +51,9 @@ def test_closing_stock_is_opening_plus_purchases_less_cost_of_sales_every_month(
     for month, (start, bought, used, closing) in enumerate(zip(opening, df["purchases"], cogs, df["inventory"], strict=True)):
         assert closing == pytest.approx(start + bought - used), month
         assert bought >= 0.0, month
+    # The purchases column is the same figure the flow checks derive, so the
+    # supplier-payment refusal sees exactly these purchases.
+    assert df["purchases"].tolist() == pytest.approx((pd.Series(cogs, index=df.index) + df["d_inventory"]).tolist())
 
 
 def test_stock_reaches_the_target_whenever_a_purchase_is_needed():
