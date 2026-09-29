@@ -13,6 +13,12 @@ from pyfpa.memory.paths import apply_override
 CorrectionType = Literal["parametric", "structural", "context"]
 CorrectionStatus = Literal["open", "applied", "superseded"]
 
+_WINDOWS_DEVICE_NAMES = (
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    | {f"COM{digit}" for digit in "123456789¹²³"}
+    | {f"LPT{digit}" for digit in "123456789¹²³"}
+)
+
 
 class Override(BaseModel):
     path: str
@@ -32,7 +38,16 @@ class Correction(BaseModel):
 
 
 def save_correction(correction: Correction, directory: str | Path, *, overwrite: bool = False) -> None:
-    """Write `<slug>.md` (YAML frontmatter + markdown body) into `directory`."""
+    """Write `<slug>.md` (YAML frontmatter + markdown body) into `directory`.
+
+    The slug must be a filename stem, without path or device syntax. The caller
+    controls the directory and its links; explicit overwrite follows file links.
+    """
+    slug = correction.slug
+    if not slug or any(char in slug for char in ("/", "\\", ":", "\0")):
+        raise ValueError("correction slug must be a non-empty filename stem")
+    if slug.partition(".")[0].rstrip(" ").upper() in _WINDOWS_DEVICE_NAMES:
+        raise ValueError("correction slug uses a reserved Windows device name")
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     data = correction.model_dump(exclude_none=True)
