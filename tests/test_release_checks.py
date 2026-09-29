@@ -7,8 +7,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = "ec6b0ee76446f11aefb7fa0c203f2e01b4c9a711"
-# These are component jobs from successful main-branch runs, never skip-tolerant
-# aggregate gates. Review the list when a component's CI contract changes.
+# These are component jobs from successful main-branch runs, plus aggregates that
+# require every job in their workflow to succeed; never a skip-tolerant aggregate
+# gate. Review the list when a component's CI contract changes.
 REQUIRED = {
     "release.yml": [
         ".github/workflows/no-ai-attribution.yml: Attribution policy / Attribution policy runner",
@@ -20,8 +21,10 @@ REQUIRED = {
         ".github/workflows/ci.yml: test (3.12)",
         ".github/workflows/ci.yml: test (3.13)",
         ".github/workflows/ci.yml: test (3.14)",
+        ".github/workflows/ci.yml: ci-gates",
         ".github/workflows/codeql.yml: Analyze (actions)",
-        ".github/workflows/codeql.yml: Analyze (python)"
+        ".github/workflows/codeql.yml: Analyze (python)",
+        ".github/workflows/codeql.yml: codeql-gates"
     ]
 }
 
