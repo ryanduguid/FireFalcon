@@ -51,10 +51,12 @@ def test_a_prior_that_leaves_a_client_no_forecast_fails_validation_without_abort
         _make_client(tmp_path, "b", 20.0, inventory=50_000.0 * 20 / 30),
         _make_client(tmp_path, "c", 20.0, inventory=50_000.0 * 20 / 30),
     ]
-    res = validate_prior("working_capital.dio_days", clients, tolerance=1e9)
-    assert res.n_folds == 3
-    assert res.mean_delta == float("inf")
-    assert res.validated is False
+    for tolerance in (1e9, float("inf")):
+        res = validate_prior("working_capital.dio_days", clients, tolerance=tolerance)
+        assert res.n_folds == 3
+        assert res.mean_delta == float("inf")
+        # Even an infinite tolerance cannot accept a fold with no forecast.
+        assert res.validated is False, tolerance
 
 
 def test_validate_too_few_clients(tmp_path):

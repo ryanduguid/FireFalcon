@@ -91,6 +91,7 @@ def validate_prior(
         _require_validated_value(candidate, [value for value, _, _ in usable])
 
     deltas = []
+    refused = False
     for i, (_, snap, score) in enumerate(usable):
         peer_values = [usable[j][0] for j in range(n) if j != i]
         prior_value = statistics.median(peer_values)
@@ -100,6 +101,7 @@ def validate_prior(
             forecast = cashflow_from_config(EntityConfig.model_validate(data))
         except ValueError:
             deltas.append(math.inf)
+            refused = True
             continue
         # Score over the SAME lines/weights Loop A used for this snapshot, so the new
         # fitness and the stored fitness are apples-to-apples (not assumed defaults).
@@ -111,7 +113,9 @@ def validate_prior(
         deltas.append(new_fitness - score.fitness)
 
     mean_delta = statistics.fmean(deltas)
-    return _result(mean_delta, n, mean_delta <= tolerance, digest)
+    # A refused fold fails validation on its own, whatever the tolerance: even
+    # an infinite one would otherwise accept the infinite mean it produces.
+    return _result(mean_delta, n, not refused and mean_delta <= tolerance, digest)
 
 
 def _result(mean_delta: float, n_folds: int, validated: bool, digest: str) -> ValidationResult:
