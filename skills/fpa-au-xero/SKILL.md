@@ -45,8 +45,9 @@ the operating loop.
 6. **Connector** only for recurring pulls: `connector-scaffold` from
    the redacted fixture, `connector-validate` as the fixture-mode
    contract test, live OAuth 2.0 PKCE implemented per company with
-   host-managed credentials. Register its pulls as `--kind api`, separate
-   from hand exports (`accounting_system`).
+   host-managed credentials. Register its pulls as their own source with
+   `--kind api` and repeat the mappings for that source ID; hand exports stay
+   `accounting_system` under their own ID.
 
 ## Pitfalls
 

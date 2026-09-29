@@ -186,11 +186,19 @@ python3 -m pyfpa.cli reconcile-source <company-root> --source-id xero-au \
 
 ## Connector
 
-Only when recurring access is worth it:
+Only when recurring access is worth it. The connector's pulls are a source of
+their own, so register them under a separate ID and repeat the mappings for it:
 
 ```bash
+python3 -m pyfpa.cli source-register <company-root> \
+  --source-id xero-au-api --kind api \
+  --location "Xero API, P&L and balance sheet reports" \
+  --entity "<Entity Pty Ltd>" --currency AUD \
+  --period 2026-07 \
+  --extraction-method "Monthly pull through the Xero API, GST-exclusive"
+# Repeat each mapping-register command above with --source-id xero-au-api.
 python3 -m pyfpa.cli connector-scaffold <company-root> --name xero-au \
-  --source-id xero-au --description "Monthly Xero P&L + BS pull" \
+  --source-id xero-au-api --description "Monthly Xero P&L + BS pull" \
   --auth-method host_environment --fixture data/xero_pl_jul2026.csv
 python3 -m pyfpa.cli connector-validate <company-root> --name xero-au
 ```
@@ -200,9 +208,9 @@ extraction (Xero API, OAuth 2.0 PKCE, token refresh) is implemented
 separately per company with host-managed credentials; register the
 tested recurring command with `entrypoint-register`.
 
-Register the connector's pulls with `--kind api` and keep reports exported
-by hand as `accounting_system`, so every source records whether it came
-through the Xero API. Xero's
+Keeping API pulls under `xero-au-api` with `--kind api`, and reports exported
+by hand under `xero-au` as `accounting_system`, means every source records
+whether it came through the Xero API. Xero's
 [Developer Platform terms](https://developer.xero.com/xero-developer-platform-terms-conditions)
 (last updated 4 December 2025, applying from 2 March 2026 to developers
 registered before 4 December 2025) treat data obtained through the API, raw or
