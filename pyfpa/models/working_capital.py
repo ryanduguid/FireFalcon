@@ -70,6 +70,18 @@ def _profile_receivables(wc: WorkingCapitalConfig, revenue: pd.Series, opening_a
     )
 
 
+def _replenished_inventory(cogs: pd.Series, target: pd.Series, opening: float) -> tuple[pd.Series, pd.Series]:
+    """Purchases and closing stock when purchases top stock up to the target but never fall below nil."""
+    purchases, closing = [], []
+    stock = opening
+    for used, wanted in zip(cogs, target, strict=True):
+        bought = max(0.0, wanted - stock + used)
+        stock = stock + bought - used
+        purchases.append(bought)
+        closing.append(stock)
+    return pd.Series(purchases, index=cogs.index), pd.Series(closing, index=cogs.index)
+
+
 def working_capital_from_config(
     cfg: EntityConfig, revenue_df: pd.DataFrame, cogs_df: pd.DataFrame
 ) -> pd.DataFrame:
@@ -83,7 +95,9 @@ def working_capital_from_config(
     cash impact. Under a collection profile, opening receivables are collected by
     `opening_ar_collection_profile` instead. With `bad_debt_share`, `ar` is net of
     the bad-debt allowance and the frame adds receipts, bad_debts, write_offs,
-    gross_ar and allowance.
+    gross_ar and allowance. With `inventory_basis` "replenishment", purchases
+    top stock up to the days target but never below nil, excess stock carries
+    forward and the frame adds purchases.
 
     Raises ValueError when the balances imply negative customer receipts,
     purchases or supplier payments in any month, naming the first such month
@@ -103,6 +117,9 @@ def working_capital_from_config(
         raise ValueError("working capital needs dso_days or collection_profile")
     ap = cogs_df["total"] * (wc.dpo_days / _DAYS_PER_MONTH)
     inventory = cogs_df["total"] * (wc.dio_days / _DAYS_PER_MONTH)
+    purchases = None
+    if wc.inventory_basis == "replenishment":
+        purchases, inventory = _replenished_inventory(cogs_df["total"], inventory, opening.inventory)
 
     df = pd.DataFrame({"ar": ar, "ap": ap, "inventory": inventory}, index=idx)
     df = df.assign(
@@ -116,4 +133,6 @@ def working_capital_from_config(
     )
     if receivables is not None and wc.bad_debt_share:
         df = df.join(receivables.drop(columns="ar"))
+    if purchases is not None:
+        df = df.assign(purchases=purchases)
     return df
