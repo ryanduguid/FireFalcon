@@ -27,7 +27,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 
 from pyfpa.au.calendar import require_iso
-from pyfpa.au.rates import load_gst_bas_data
+from pyfpa.au.rates import load_gst_bas_data, require_bas_dates_reviewed
 from pyfpa.cash13.schemas import WeeklyFlow
 
 
@@ -107,8 +107,9 @@ def _next_business_day(due: date) -> date:
     return due + timedelta(days=shift)
 
 
-def _quarter_due_date(quarter_end: pd.Period) -> date:
-    """Due date for the quarterly BAS ending at `quarter_end`."""
+def quarterly_bas_due_date(quarter_end: pd.Period) -> date:
+    """Due date for the quarterly BAS whose quarter ends with month `quarter_end`."""
+    require_bas_dates_reviewed(quarter_end.end_time.date())
     rules = load_gst_bas_data()["quarterly_due"]
     key = f"{quarter_end.month:02d}"
     rule = rules[key]  # {'month': int, 'day': int} relative to quarter end
@@ -116,8 +117,9 @@ def _quarter_due_date(quarter_end: pd.Period) -> date:
     return _next_business_day(date(due_year, rule["month"], rule["day"]))
 
 
-def _month_due_date(month: pd.Period) -> date:
-    """Due date for the monthly BAS for `month` (21st following)."""
+def monthly_activity_statement_due_date(month: pd.Period) -> date:
+    """Due date for the monthly activity statement for `month` (21st following)."""
+    require_bas_dates_reviewed(month.end_time.date())
     day = int(load_gst_bas_data()["monthly_due_day"])
     following = month + 1
     return _next_business_day(date(following.year, following.month, day))
@@ -145,7 +147,7 @@ def bas_schedule(
             rows.append(
                 {
                     "period_label": str(period),
-                    "due_date": _month_due_date(period),
+                    "due_date": monthly_activity_statement_due_date(period),
                     "amount": float(amount),
                 }
             )
@@ -159,7 +161,7 @@ def bas_schedule(
             rows.append(
                 {
                     "period_label": str(quarter),
-                    "due_date": _quarter_due_date(quarter_end),
+                    "due_date": quarterly_bas_due_date(quarter_end),
                     "amount": float(amounts.sum()),
                 }
             )

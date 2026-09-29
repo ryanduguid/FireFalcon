@@ -2,6 +2,13 @@
 # Sources: ATO (GST rate; BAS due dates).
 # https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst
 # https://www.ato.gov.au/businesses-and-organisations/preparing-lodging-and-paying/business-activity-statements-bas/due-dates-for-lodging-and-paying-your-bas
+# PAYG withholding follows the same activity statement dates: small withholders
+# pay quarterly, medium withholders monthly (checked 2026-09-29 against
+# https://www.ato.gov.au/businesses-and-organisations/hiring-and-paying-your-workers/payg-withholding/paying-and-reporting-withheld-amounts/paying-and-reporting-payg-withholding-amounts-for-small-and-medium-withholders).
+# The maintainer verified the due dates below on 2026-09-29. A due-date lookup
+# for a month or quarter ending after reviewed_until raises until the sources
+# are re-checked and the date is moved.
+reviewed_until: 2027-06-30
 gst_rate: 0.10
 registration_threshold: 75000
 registration_threshold_nonprofit: 150000
