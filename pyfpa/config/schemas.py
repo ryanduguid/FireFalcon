@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Literal
+from typing import Annotated, Literal
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -82,10 +82,38 @@ class DebtInstrument(_ConfigModel):
         return name
 
 
+_SHARE_TOLERANCE = 1e-9
+_Share = Annotated[float, Field(ge=0)]
+
+
+def _require_shares_add_to_one(shares: list[float] | None, name: str) -> None:
+    if shares is not None and abs(sum(shares) - 1.0) > _SHARE_TOLERANCE:
+        raise ValueError(f"{name} shares must add up to 1, not {sum(shares):g}")
+
+
 class WorkingCapitalConfig(_ConfigModel):
-    dso_days: float = Field(ge=0)
+    # Receivables follow either days of revenue (dso_days) or a collection profile:
+    # the share of each month's revenue received that month and in each month after.
+    dso_days: float | None = Field(default=None, ge=0)
     dpo_days: float = Field(ge=0)
     dio_days: float = Field(ge=0)
+    collection_profile: list[_Share] | None = Field(default=None, min_length=1)
+    # Shares of the opening receivables received in the first forecast month and after.
+    opening_ar_collection_profile: list[_Share] | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def _one_receivables_basis(self) -> WorkingCapitalConfig:
+        if self.dso_days is not None and self.collection_profile is not None:
+            raise ValueError("give dso_days or collection_profile, not both")
+        if self.dso_days is None and self.collection_profile is None:
+            raise ValueError("give dso_days or collection_profile")
+        if self.opening_ar_collection_profile is not None and self.collection_profile is None:
+            raise ValueError("opening_ar_collection_profile applies only with collection_profile")
+        # Shares adding up to 1 collect every dollar once; write-offs would need
+        # a bad-debt expense line, which this model does not have.
+        _require_shares_add_to_one(self.collection_profile, "collection_profile")
+        _require_shares_add_to_one(self.opening_ar_collection_profile, "opening_ar_collection_profile")
+        return self
 
 
 class OpeningBalances(_ConfigModel):
@@ -168,4 +196,14 @@ class EntityConfig(_ConfigModel):
         outside = sorted(set(self.income_tax.payments) - months)
         if outside:
             raise ValueError("income_tax.payments names months outside the forecast: " + ", ".join(outside))
+        return self
+
+    @model_validator(mode="after")
+    def _opening_receivables_have_a_profile(self) -> EntityConfig:
+        wc = self.working_capital
+        if (wc.collection_profile is not None and self.opening_balances.ar != 0
+                and wc.opening_ar_collection_profile is None):
+            raise ValueError(
+                "opening receivables need opening_ar_collection_profile when collection_profile sets receipts"
+            )
         return self
