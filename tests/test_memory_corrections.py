@@ -104,6 +104,21 @@ def test_apply_bad_path_raises_loudly():
         apply_corrections(cfg, [bad])
 
 
+def test_a_days_correction_on_a_profile_client_is_refused_not_switched():
+    # A client that now collects by a profile cannot take an old dso_days
+    # correction: applying it would switch receivables back to days silently, so
+    # it fails loud until the correction is closed or replaced.
+    cfg = EntityConfig.model_validate({
+        **_cfg().model_dump(),
+        "working_capital": {"collection_profile": [0.5, 0.5], "dpo_days": 30.0, "dio_days": 30.0},
+    })
+    old = Correction(slug="dso", type="parametric", target="working_capital.dso_days",
+                     status="applied", date="2026-06-08",
+                     override=Override(path="working_capital.dso_days", value=45.0))
+    with pytest.raises(ValueError, match="not both"):
+        apply_corrections(cfg, [old])
+
+
 def test_a_correction_target_keeps_its_literal_triple_hyphens(tmp_path):
     # F074: the shared frontmatter splitter cut this target short, so the
     # correction failed validation on load.
