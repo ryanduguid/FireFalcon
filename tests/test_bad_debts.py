@@ -138,6 +138,12 @@ def test_a_divestiture_keeps_the_bad_debts_in_ebitda():
         ({"collection_profile": [0.5, 0.5], "bad_debt_share": 0.05, "write_off_after_months": 3}, "add up to 0.95"),
         ({"collection_profile": [0.5, 0.45], "bad_debt_share": 0.05, "write_off_after_months": -1}, "greater than or equal"),
         ({"collection_profile": [0.0], "bad_debt_share": 1.0, "write_off_after_months": 0}, "less than 1"),
+        # A tiny collectible share must still be collected: an absolute tolerance
+        # of 1e-9 would accept nothing, or twice it, and leave receivables behind.
+        ({"collection_profile": [0.0], "bad_debt_share": 0.9999999995, "write_off_after_months": 0},
+         "collection_profile shares must add up to"),
+        ({"collection_profile": [1e-9], "bad_debt_share": 0.9999999995, "write_off_after_months": 0},
+         "collection_profile shares must add up to"),
     ],
 )
 def test_bad_debts_refuse_what_they_cannot_place(working_capital, message):
