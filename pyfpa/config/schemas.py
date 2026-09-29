@@ -96,6 +96,26 @@ class OpeningBalances(_ConfigModel):
     nol: float = Field(default=0.0, ge=0)  # net operating loss carryforward
 
 
+class IncomeTaxConfig(_ConfigModel):
+    """An income-year tax provision in place of the default monthly approximation.
+
+    For each Australian income year from 1 July, the provision is tax_rate times
+    year-to-date pre-tax income (a proxy for taxable income) less the tax loss
+    available; each month's tax is the movement in the provision, so a later
+    loss can reverse an earlier month's tax. Cash follows `payments`, never the
+    provision. `opening_balances.nol` is the tax loss available for deduction at
+    the start: the library does not apply the continuity tests in Division 165
+    of the Income Tax Assessment Act 1997.
+    """
+
+    # Whether a loss for a forecast income year may be deducted in a later one.
+    # None means unknown, which is refused once such a loss would reduce tax.
+    forecast_losses_deductible: bool | None = None
+    # Tax paid or refunded (negative) by month, keyed "YYYY-MM": instalments and
+    # final payments. A month not listed pays nothing.
+    payments: dict[str, float] = Field(default_factory=dict)
+
+
 class EntityConfig(_ConfigModel):
     name: str
     start_month: str
@@ -110,6 +130,7 @@ class EntityConfig(_ConfigModel):
     debt: list[DebtInstrument] = Field(default_factory=list)
     working_capital: WorkingCapitalConfig
     opening_balances: OpeningBalances = Field(default_factory=OpeningBalances)
+    income_tax: IncomeTaxConfig | None = None
 
     @field_validator("start_month")
     @classmethod
@@ -131,4 +152,18 @@ class EntityConfig(_ConfigModel):
             names = [item.name.casefold() for item in getattr(self, field)]
             if len(names) != len(set(names)):
                 raise ValueError(f"{field} names must be unique")
+        return self
+
+    @model_validator(mode="after")
+    def _income_year_tax_starts_in_july(self) -> EntityConfig:
+        if self.income_tax is None:
+            return self
+        start = pd.Period(self.start_month, freq="M")
+        if start.month != 7:
+            raise ValueError("income_tax needs a forecast starting in July: a year-to-date "
+                             "provision cannot begin part-way through an income year")
+        months = {str(period) for period in pd.period_range(start, periods=self.horizon_months, freq="M")}
+        outside = sorted(set(self.income_tax.payments) - months)
+        if outside:
+            raise ValueError("income_tax.payments names months outside the forecast: " + ", ".join(outside))
         return self

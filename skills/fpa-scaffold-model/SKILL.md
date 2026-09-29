@@ -24,7 +24,7 @@ Map the real numbers onto the existing engine structure.
    - cost accounts → `opex[]` as `OpexLine(kind="fixed", monthly_amount=…)` or `kind="variable", pct_of_revenue=…`
    - debt → `debt[]` (`term_loan` with `monthly_principal`, or interest-only `loc`)
    - balance-sheet rhythm → `working_capital(dso_days, dpo_days, dio_days)` and `opening_balances`
-   - income tax → `tax_rate`, which is required: 25% for a base rate entity, otherwise 30%. Ask; do not assume either.
+   - income tax → `tax_rate`, which is required: 25% for a base rate entity, otherwise 30%. Ask; do not assume either. By default each profitable month is taxed on its own, which overstates tax in a year with loss months. For a forecast starting in July, `income_tax` provisions tax on year-to-date pre-tax income for each income year and takes tax cash from its `payments`; ask whether losses made in the forecast may be deducted later (`forecast_losses_deductible`) rather than assuming so.
 3. **Write** the company model and config under `models/generated/`. Validate
    config with `pyfpa.load_config(path)`, which raises on a missing required
    field, an out-of-range value, and any key the schema does not define, so a

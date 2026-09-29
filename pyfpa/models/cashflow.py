@@ -30,6 +30,40 @@ def _tax_series(pretax: pd.Series, opening_nol: float, tax_rate: float) -> pd.Se
     return pd.Series(out, index=pretax.index)
 
 
+def _income_year_tax(pretax: pd.Series, opening_loss: float, tax_rate: float,
+                     forecast_losses_deductible: bool | None) -> pd.Series:
+    """Monthly movement in a provision of tax_rate on year-to-date pre-tax income.
+
+    Each income year starts on 1 July with the tax loss then available, which
+    shelters that year's income first. A year's unused loss carries forward; a
+    loss made in a forecast year joins it only when forecast_losses_deductible
+    is True, and when that is None the calculation stops as soon as such a loss
+    would reduce a later year's tax.
+    """
+    out: list[float] = []
+    available, unknown = opening_loss, 0.0
+    to_date = provided = 0.0
+    for period, value in pretax.items():
+        if period.month == 7 and out:
+            # Close the income year just ended.
+            if to_date >= 0:
+                available = max(0.0, available - to_date)
+            elif forecast_losses_deductible:
+                available += -to_date
+            elif forecast_losses_deductible is None:
+                unknown += -to_date
+            to_date = provided = 0.0
+        to_date += value
+        if unknown and to_date > available:
+            raise ValueError(
+                f"a forecast tax loss of {unknown:,.2f} would reduce tax in the income year from {period}; "
+                "set income_tax.forecast_losses_deductible (Division 165 of the ITAA 1997)")
+        provision = tax_rate * max(0.0, to_date - available)
+        out.append(provision - provided)
+        provided = provision
+    return pd.Series(out, index=pretax.index)
+
+
 def _require_finite_columns(frame: pd.DataFrame, columns: Iterable[str]) -> None:
     for column in columns:
         if frame[column].isna().any() or not all(math.isfinite(value) for value in frame[column]):
@@ -60,10 +94,19 @@ def cashflow_from_config(cfg: EntityConfig) -> pd.DataFrame:
     ebit = ebitda - da                 # D&A is a real (non-cash) expense in the P&L...
     interest = debt["interest"]
     pretax = ebit - interest
-    tax = _tax_series(pretax, cfg.opening_balances.nol, cfg.tax_rate)
+    if cfg.income_tax is None:
+        tax = _tax_series(pretax, cfg.opening_balances.nol, cfg.tax_rate)
+    else:
+        tax = _income_year_tax(pretax, cfg.opening_balances.nol, cfg.tax_rate,
+                               cfg.income_tax.forecast_losses_deductible)
     net_income = pretax - tax
 
     operating_cash_flow = net_income + da + wc["wc_cash_impact"]  # ...and added back here
+    if cfg.income_tax is not None:
+        # The income-year provision is not cash: add it back and pay the schedule.
+        tax_paid = pd.Series([cfg.income_tax.payments.get(str(p), 0.0) for p in pretax.index],
+                             index=pretax.index, dtype=float)
+        operating_cash_flow = operating_cash_flow + tax - tax_paid
     free_cash_flow = operating_cash_flow - capex
     change_in_cash = free_cash_flow - debt["principal"]
     ending_cash = change_in_cash.cumsum() + cfg.opening_balances.cash
@@ -90,6 +133,8 @@ def cashflow_from_config(cfg: EntityConfig) -> pd.DataFrame:
         },
         index=revenue.index,
     )
+    if cfg.income_tax is not None:
+        forecast.insert(list(forecast.columns).index("tax") + 1, "tax_paid", tax_paid)
     _require_finite_columns(forecast, forecast.columns)
     return forecast
 
@@ -126,6 +171,8 @@ def apply_receipt_delay(
             wc[position] += amount
     out["wc_cash_impact"] = pd.Series(wc, index=out.index)
     out["operating_cash_flow"] = out["net_income"] + out["da"] + out["wc_cash_impact"]
+    if "tax_paid" in out.columns:
+        out["operating_cash_flow"] = out["operating_cash_flow"] + out["tax"] - out["tax_paid"]
     out["free_cash_flow"] = out["operating_cash_flow"] - out["capex"]
     out["change_in_cash"] = out["free_cash_flow"] - out["principal"]
     out["ending_cash"] = out["change_in_cash"].cumsum() + opening_cash
