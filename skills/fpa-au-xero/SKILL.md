@@ -45,7 +45,8 @@ the operating loop.
 6. **Connector** only for recurring pulls: `connector-scaffold` from
    the redacted fixture, `connector-validate` as the fixture-mode
    contract test, live OAuth 2.0 PKCE implemented per company with
-   host-managed credentials.
+   host-managed credentials. Register its pulls as `--kind api`, separate
+   from hand exports (`accounting_system`).
 
 ## Pitfalls
 
@@ -64,6 +65,13 @@ the operating loop.
 - Balance-sheet clearing accounts drive the GST/PAYG cash bridge in
   the 13-week model; an unreconciled clearing balance means the BAS
   forecast week is a guess.
+- Data pulled through the Xero API stays API data under Xero's developer
+  terms, raw or processed, and may not train, fine-tune, adapt or enhance
+  AI models, predictive analytics tools included. Before
+  `fpa-backtest-learn`, `fpa-research-loop` or `fpa-portfolio-learn` uses
+  an `api` Xero source, get the owner's confirmation that the terms permit
+  it and record it under `.fpa/decisions/`, as the recipe's Connector
+  section sets out.
 
 ## Verification
 
