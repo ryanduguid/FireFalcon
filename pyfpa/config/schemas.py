@@ -88,9 +88,16 @@ _SHARE_TOLERANCE = 1e-9
 _Share = Annotated[float, Field(ge=0)]
 
 
-def _require_shares_add_to(shares: list[float] | None, total: float, name: str) -> None:
-    if shares is not None and not math.isclose(sum(shares), total, rel_tol=_SHARE_TOLERANCE, abs_tol=0.0):
-        raise ValueError(f"{name} shares must add up to {total:.12g}, not {sum(shares):.12g}")
+def _require_shares_add_to(shares: list[float] | None, total: float, name: str, *, slack: float = 0.0) -> None:
+    """Refuse shares that do not add up to `total`, relatively, give or take `slack`.
+
+    `slack` is the rounding a total carries from its own inputs: 1 - bad_debt_share
+    keeps bad_debt_share's rounding at full size, so a tiny total needs that much
+    room, one unit in the last place of bad_debt_share, and no more.
+    """
+    added = math.fsum(shares) if shares is not None else total
+    if not math.isclose(added, total, rel_tol=_SHARE_TOLERANCE, abs_tol=slack):
+        raise ValueError(f"{name} shares must add up to {total:.12g}, not {added:.12g}")
 
 
 class WorkingCapitalConfig(_ConfigModel):
@@ -127,7 +134,8 @@ class WorkingCapitalConfig(_ConfigModel):
             raise ValueError("write_off_after_months applies only with bad_debt_share")
         # Every recognised dollar is collected once or written off once. Opening
         # receivables carry no allowance, so their profile adds up to 1.
-        _require_shares_add_to(self.collection_profile, 1.0 - self.bad_debt_share, "collection_profile")
+        _require_shares_add_to(self.collection_profile, 1.0 - self.bad_debt_share, "collection_profile",
+                               slack=math.ulp(self.bad_debt_share))
         _require_shares_add_to(self.opening_ar_collection_profile, 1.0, "opening_ar_collection_profile")
         return self
 

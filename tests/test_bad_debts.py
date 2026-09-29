@@ -151,6 +151,15 @@ def test_bad_debts_refuse_what_they_cannot_place(working_capital, message):
         _config(working_capital)
 
 
+@pytest.mark.parametrize(("share", "collected"), [(0.9999999995, 5e-10), (0.9999999999999999, 1e-16)])
+def test_a_tiny_collectible_share_that_completes_the_bad_debt_share_is_accepted(share, collected):
+    # 1 - share keeps share's rounding at full size (1 - 0.9999999995 is
+    # 5.0000000414e-10 in floating point), so the profile that completes it on
+    # paper must still pass.
+    config = _config({"collection_profile": [collected], "bad_debt_share": share, "write_off_after_months": 0})
+    assert config.working_capital.collection_profile == [collected]
+
+
 def test_the_excel_export_refuses_bad_debts_before_writing(tmp_path):
     path = tmp_path / "model.xlsx"
     with pytest.raises(ValueError, match="collection_profile"):
