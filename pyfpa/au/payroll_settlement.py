@@ -16,6 +16,7 @@ module: due-date rules are passed in.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -44,6 +45,8 @@ class SettlementEvent:
     def __post_init__(self) -> None:
         if self.component not in COMPONENTS:
             raise ValueError(f"unknown component {self.component!r}")
+        if not math.isfinite(self.amount) or self.amount < 0:
+            raise ValueError(f"{self.component} for {self.source_period} must be a finite amount of 0 or more")
         if self.due_date < self.obligation_date:
             raise ValueError(f"{self.component} for {self.source_period} falls due before it arises")
         if self.cash_date < self.obligation_date:
@@ -67,13 +70,16 @@ def settlement_events(
 ) -> list[SettlementEvent]:
     """Dated settlement events for a `payroll_forecast` frame.
 
-    `due_rules` maps each component other than net wages to a function from its
-    obligation date to its due date. `pay_days_before_due` moves a component's
-    cash date that many days before its due date (default 0: paid when due).
+    `due_rules` maps each component other than net wages, which fall due on the
+    payday, to a function from its obligation date to its due date.
+    `pay_days_before_due` moves a component's cash date that many days before
+    its due date (default 0: paid when due).
     """
     rate = payg_withholding_rate_assumption
     if not 0 <= rate < 1:
         raise ValueError("payg_withholding_rate_assumption must be at least 0 and below 1")
+    if "net_wages" in due_rules:
+        raise ValueError("net_wages fall due on each payday, so due_rules cannot move them")
     early = pay_days_before_due or {}
     for name, mapping in (("due_rules", due_rules), ("pay_days_before_due", early)):
         unknown = sorted(set(mapping) - set(COMPONENTS))
@@ -151,6 +157,8 @@ def monthly_settlement(events: Sequence[SettlementEvent], months: pd.PeriodIndex
 def settlement_weekly_flows(events: Sequence[SettlementEvent], window_start: date,
                             weeks: int = 13) -> list[WeeklyFlow]:
     """Disbursements for the 13-week forecast; payments outside the window are left out."""
+    if isinstance(weeks, bool) or not isinstance(weeks, int) or weeks < 1:
+        raise ValueError("weeks must be a whole number of weeks, 1 or more")
     flows = []
     for event in events:
         offset = (event.cash_date - window_start).days

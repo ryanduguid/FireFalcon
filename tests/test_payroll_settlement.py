@@ -163,6 +163,11 @@ def test_obligations_before_the_first_month_open_the_liability():
         ({"pay_days_before_due": {"super_guarentee": 3}}, "pay_days_before_due names an unknown component"),
         ({"pay_days_before_due": {"super_guarantee": -3}}, "whole days, 0 or more"),
         ({"pay_days_before_due": {"super_guarantee": 1.5}}, "whole days, 0 or more"),
+        # A net wages rule would otherwise be accepted and ignored.
+        ({"rules": {**RULES, "net_wages": seven_days_later}}, "net_wages fall due on each payday"),
+        # June's bonus reversal leaves negative gross pay, which no payment can settle.
+        ({"payroll": _payroll(bonuses=[-5000.0, 0.0, 0.0])}, "finite amount of 0 or more"),
+        ({"payroll": _payroll(super_guarantee=[float("nan"), 600.0, 480.0])}, "finite amount of 0 or more"),
     ],
 )
 def test_settlement_refuses_what_it_cannot_place(kwargs, message):
@@ -177,8 +182,9 @@ def test_settlement_refuses_what_it_cannot_place(kwargs, message):
         MONTHS[::-1],
         MONTHS[:0],
         pd.period_range("2026-06", "2026-08", freq="Q"),
+        pd.PeriodIndex([pd.NaT], freq="M"),
     ],
-    ids=["gap", "reversed", "empty", "quarterly"],
+    ids=["gap", "reversed", "empty", "quarterly", "missing"],
 )
 def test_monthly_settlement_refuses_months_that_do_not_run_consecutively(months):
     # A skipped July would drop July's obligations and leave August's cash
@@ -198,6 +204,20 @@ def test_monthly_settlement_refuses_months_that_do_not_run_consecutively(months)
 def test_an_event_built_by_hand_keeps_the_same_rules(component, due, cash, message):
     with pytest.raises(ValueError, match=message):
         SettlementEvent(component, pd.Period("2026-06", freq="M"), date(2026, 6, 30), due, cash, 100.0)
+
+
+@pytest.mark.parametrize("amount", [-1.0, float("nan"), float("inf")])
+def test_an_event_built_by_hand_needs_a_finite_amount_of_0_or_more(amount):
+    with pytest.raises(ValueError, match="finite amount of 0 or more"):
+        SettlementEvent("payroll_tax", pd.Period("2026-06", freq="M"), date(2026, 6, 30),
+                        date(2026, 7, 7), date(2026, 7, 7), amount)
+
+
+@pytest.mark.parametrize("weeks", [0, -1, True, 1.5])
+def test_the_weekly_window_needs_a_whole_number_of_weeks(weeks):
+    # weeks=0 would silently return no payments at all.
+    with pytest.raises(ValueError, match="whole number of weeks, 1 or more"):
+        settlement_weekly_flows(_events(), date(2026, 6, 1), weeks=weeks)
 
 
 def test_components_with_no_cost_need_no_rule():
