@@ -10,6 +10,7 @@ can be reviewed the same way.
 import math
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -150,6 +151,16 @@ def test_arithmetic_that_overflows_is_not_run_rather_than_failed(sample_config, 
     assert ("FR-IDENTITY-PRETAX-INCOME", Status.NOT_RUN, "2026-03") in codes(review)
     assert ("FR-IDENTITY-PRETAX-INCOME", Status.FAIL, "2026-03") not in codes(review)
     assert ("FR-CASH-ROLLFORWARD", Status.NOT_RUN, "2026-03") in codes(review)
+
+
+def test_integer_arithmetic_is_exact_rather_than_wrapping(sample_config, forecast):
+    changed = forecast.astype(object)
+    big = np.int64(6_000_000_000_000_000_000)
+    changed.loc[changed.index[4], ["net_income", "da", "wc_cash_impact"]] = [big, big, np.int64(0)]
+    # 12e18 wrapped at 64 bits: 12,000,000,000,000,000,000 - 2**64.
+    changed.loc[changed.index[4], "operating_cash_flow"] = np.int64(-6_446_744_073_709_551_616)
+    review = review_forecast(changed, sample_config)
+    assert ("FR-IDENTITY-OPERATING-CASH-FLOW", Status.FAIL, "2026-05") in codes(review)
 
 
 @pytest.mark.parametrize("column", ["ending_cash", "revenue"])
