@@ -93,6 +93,8 @@ def test_differences_inside_the_tolerance_are_not_findings(sample_config, foreca
         (lambda f: f.iloc[1:], "start"),
         (lambda f: f.iloc[:-1], "length"),
         (lambda f: f.set_axis(pd.RangeIndex(len(f))), "monthly"),
+        # Right months, right start and length, but April and May swapped.
+        (lambda f: f.iloc[[0, 1, 2, 4, 3, *range(5, 12)]], "order"),
     ],
 )
 def test_a_malformed_month_index_fails_and_the_roll_forward_is_not_run(sample_config, forecast, change, detail):
@@ -116,3 +118,24 @@ def test_a_non_finite_value_fails_for_its_column_and_month(sample_config, foreca
     review = review_forecast(changed, sample_config)
     assert ("FR-NON-FINITE", Status.FAIL, "2026-08") in codes(review)
     assert all(status is Status.FAIL for code, status, _ in codes(review) if code == "FR-NON-FINITE")
+    # The identity that needs tax is reported as not run, not silently skipped.
+    assert ("FR-IDENTITY-NET-INCOME", Status.NOT_RUN, "2026-08") in codes(review)
+
+
+def test_a_value_that_is_not_a_number_is_reported_not_raised(sample_config, forecast):
+    changed = forecast.astype(object)
+    changed.loc[changed.index[7], "tax"] = "bad"
+    review = review_forecast(changed, sample_config)
+    assert ("FR-NON-FINITE", Status.FAIL, "2026-08") in codes(review)
+    assert ("FR-IDENTITY-NET-INCOME", Status.NOT_RUN, "2026-08") in codes(review)
+
+
+def test_a_non_finite_closing_cash_leaves_its_month_and_the_next_not_run(sample_config, forecast):
+    changed = forecast.copy()
+    changed.loc[changed.index[4], "ending_cash"] = math.nan
+    review = review_forecast(changed, sample_config)
+    # May cannot be checked, nor June, whose opening cash is May's closing cash;
+    # July onwards is checked again.
+    assert [(status, period) for code, status, period in codes(review) if code == "FR-CASH-ROLLFORWARD"] == [
+        (Status.NOT_RUN, "2026-05"), (Status.NOT_RUN, "2026-06"),
+    ]

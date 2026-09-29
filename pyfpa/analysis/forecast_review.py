@@ -8,6 +8,7 @@ it needs, so an absent check is never mistaken for a passed one.
 from __future__ import annotations
 
 import math
+import numbers
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -70,14 +71,13 @@ def _index_problems(index: pd.Index, cfg: EntityConfig) -> list[str]:
         problems.append(f"the forecast starts at {index[0]}, not the configured start {expected[0]}")
     if len(index) != cfg.horizon_months:
         problems.append(f"the forecast has {len(index)} months, not the configured length {cfg.horizon_months}")
+    if not problems and not index.equals(expected):
+        problems.append("the months are not in calendar order")
     return problems
 
 
 def _finite(value: object) -> bool:
-    try:
-        return math.isfinite(float(value))  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return False
+    return isinstance(value, numbers.Real) and not isinstance(value, bool) and math.isfinite(value)
 
 
 def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview:
@@ -106,23 +106,35 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
                                     f"{column} cannot be checked without " + ", ".join((column, *inputs))))
             continue
         for period, row in forecast.iterrows():
-            observed, expected = row[column], expected_of(row)
-            if _finite(observed) and _finite(expected) and abs(observed - expected) > _TOLERANCE:
-                findings.append(Finding(_code(column), Status.FAIL, str(period), float(observed), float(expected),
+            unusable = [name for name in (column, *inputs) if not _finite(row[name])]
+            if unusable:
+                # Never do the identity's arithmetic on a value that failed the check above.
+                findings.append(Finding(_code(column), Status.NOT_RUN, str(period), None, None,
+                                        f"{column} cannot be checked in {period}; not a finite number: "
+                                        + ", ".join(unusable)))
+                continue
+            observed, expected = float(row[column]), float(expected_of(row))
+            if abs(observed - expected) > _TOLERANCE:
+                findings.append(Finding(_code(column), Status.FAIL, str(period), observed, expected,
                                         f"{column} is {observed:,.2f} in {period}; its inputs give {expected:,.2f}"))
 
     if index_problems or any(name in missing for name in _ROLL_FORWARD):
         findings.append(Finding("FR-CASH-ROLLFORWARD", Status.NOT_RUN, None, None, None,
                                 "the cash roll-forward needs an ordered monthly index and ending_cash and change_in_cash"))
     else:
-        previous = cfg.opening_balances.cash
+        previous: float | None = cfg.opening_balances.cash
         for period, row in forecast.iterrows():
-            observed, expected = row["ending_cash"], previous + row["change_in_cash"]
-            if _finite(observed) and _finite(expected) and abs(observed - expected) > _TOLERANCE:
-                findings.append(Finding("FR-CASH-ROLLFORWARD", Status.FAIL, str(period), float(observed),
-                                        float(expected),
-                                        f"closing cash is {observed:,.2f} in {period}; opening cash plus the "
-                                        f"month's change gives {expected:,.2f}"))
-            previous = observed
+            closing, change = row["ending_cash"], row["change_in_cash"]
+            if previous is None or not _finite(closing) or not _finite(change):
+                findings.append(Finding("FR-CASH-ROLLFORWARD", Status.NOT_RUN, str(period), None, None,
+                                        f"the cash roll-forward cannot be checked in {period}: opening cash, "
+                                        "closing cash or the month's change is not a finite number"))
+            else:
+                observed, expected = float(closing), previous + float(change)
+                if abs(observed - expected) > _TOLERANCE:
+                    findings.append(Finding("FR-CASH-ROLLFORWARD", Status.FAIL, str(period), observed, expected,
+                                            f"closing cash is {observed:,.2f} in {period}; opening cash plus the "
+                                            f"month's change gives {expected:,.2f}"))
+            previous = float(closing) if _finite(closing) else None
 
     return ForecastReview(tuple(findings))
