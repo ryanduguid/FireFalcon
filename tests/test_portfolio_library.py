@@ -102,6 +102,24 @@ def test_promote_prior_and_seed(tmp_path):
     assert _cfg(dio=30.0).working_capital.dio_days == 30.0     # base unmutated
 
 
+def test_a_prior_the_config_cannot_take_is_refused_before_any_seed_is_recorded(tmp_path):
+    # A dso_days prior cannot seed a client that collects by a profile: the two
+    # are exclusive, so the seed is refused and neither side records it.
+    lib = tmp_path / "library"
+    cand = _prior(tmp_path, driver="working_capital.dso_days", value=40.0)
+    _approve(lib, cand)
+    promote_prior(lib, cand, _validation(cand))
+    profile_client = EntityConfig.model_validate({
+        **_cfg().model_dump(),
+        "working_capital": {"collection_profile": [0.5, 0.5], "dpo_days": 30.0, "dio_days": 30.0},
+    })
+    with pytest.raises(ValueError, match="not both"):
+        seed_from_library(lib, "d2c", profile_client,
+                          company_root=tmp_path / "fourth", seeded_at="2026-09-20")
+    assert not (tmp_path / "fourth" / ".fpa" / "library-seeds.yaml").exists()
+    assert not (lib / "provenance" / "seeds.yaml").exists()
+
+
 def test_seed_unknown_type_is_noop(tmp_path):
     lib = tmp_path / "library"
     out = seed_from_library(lib, "saas", _cfg(dio=30.0),

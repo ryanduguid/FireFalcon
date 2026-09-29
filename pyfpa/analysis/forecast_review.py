@@ -13,6 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
+import numpy as np
 import pandas as pd
 
 from pyfpa.config.schemas import EntityConfig
@@ -90,7 +91,21 @@ def _index_problems(index: pd.Index, cfg: EntityConfig) -> list[str]:
 
 
 def _finite(value: object) -> bool:
-    return isinstance(value, numbers.Real) and not isinstance(value, bool) and math.isfinite(value)
+    if not isinstance(value, numbers.Real) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:  # an integer too large for a float
+        return False
+
+
+def _finite_float(value: float) -> float | None:
+    """The result of a check's arithmetic as a float, or None when it overflows."""
+    try:
+        result = float(value)
+    except OverflowError:  # integer arithmetic beyond the float range
+        return None
+    return result if math.isfinite(result) else None
 
 
 def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview:
@@ -112,7 +127,14 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
         findings.append(Finding("FR-MISSING-COLUMN", Status.FAIL, None, None, None,
                                 "missing columns: " + ", ".join(missing)))
 
-    present = [column for column in needed if column in forecast.columns]
+    # A repeated label makes row[column] a Series, so no check could read it.
+    duplicated = sorted(set(forecast.columns[forecast.columns.duplicated()]) & set(needed))
+    if duplicated:
+        findings.append(Finding("FR-DUPLICATE-COLUMN", Status.FAIL, None, None, None,
+                                "duplicate columns: " + ", ".join(duplicated)))
+    unusable_columns = set(missing) | set(duplicated)
+
+    present = [column for column in needed if column not in unusable_columns]
     for period, row in forecast[present].iterrows():
         for column, value in row.items():
             if not _finite(value):
@@ -120,9 +142,10 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
                                         f"{column} is not a finite number in {period}"))
 
     for column, inputs, expected_of in identities:
-        if column in missing or any(name in missing for name in inputs):
+        if unusable_columns & {column, *inputs}:
             findings.append(Finding(_code(column), Status.NOT_RUN, None, None, None,
-                                    f"{column} cannot be checked without " + ", ".join((column, *inputs))))
+                                    f"{column} cannot be checked without one column each for "
+                                    + ", ".join((column, *inputs))))
             continue
         for period, row in forecast.iterrows():
             unusable = [name for name in (column, *inputs) if not _finite(row[name])]
@@ -132,14 +155,21 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
                                         f"{column} cannot be checked in {period}; not a finite number: "
                                         + ", ".join(unusable)))
                 continue
-            observed, expected = float(row[column]), float(expected_of(row))
+            with np.errstate(over="ignore", invalid="ignore"):  # an overflow is reported below
+                raw = expected_of(row)
+            observed, expected = float(row[column]), _finite_float(raw)
+            if expected is None:
+                findings.append(Finding(_code(column), Status.NOT_RUN, str(period), None, None,
+                                        f"{column} cannot be checked in {period}; its inputs' arithmetic overflows"))
+                continue
             if abs(observed - expected) > _TOLERANCE:
                 findings.append(Finding(_code(column), Status.FAIL, str(period), observed, expected,
                                         f"{column} is {observed:,.2f} in {period}; its inputs give {expected:,.2f}"))
 
-    if index_problems or any(name in missing for name in _ROLL_FORWARD):
+    if index_problems or unusable_columns & set(_ROLL_FORWARD):
         findings.append(Finding("FR-CASH-ROLLFORWARD", Status.NOT_RUN, None, None, None,
-                                "the cash roll-forward needs an ordered monthly index and ending_cash and change_in_cash"))
+                                "the cash roll-forward needs an ordered monthly index and one column each for "
+                                "ending_cash and change_in_cash"))
     else:
         previous: float | None = cfg.opening_balances.cash
         for period, row in forecast.iterrows():
@@ -148,8 +178,12 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
                 findings.append(Finding("FR-CASH-ROLLFORWARD", Status.NOT_RUN, str(period), None, None,
                                         f"the cash roll-forward cannot be checked in {period}: opening cash, "
                                         "closing cash or the month's change is not a finite number"))
+            elif (expected := _finite_float(previous + float(change))) is None:
+                findings.append(Finding("FR-CASH-ROLLFORWARD", Status.NOT_RUN, str(period), None, None,
+                                        f"the cash roll-forward cannot be checked in {period}: opening cash "
+                                        "plus the month's change overflows"))
             else:
-                observed, expected = float(closing), previous + float(change)
+                observed = float(closing)
                 if abs(observed - expected) > _TOLERANCE:
                     findings.append(Finding("FR-CASH-ROLLFORWARD", Status.FAIL, str(period), observed, expected,
                                             f"closing cash is {observed:,.2f} in {period}; opening cash plus the "
