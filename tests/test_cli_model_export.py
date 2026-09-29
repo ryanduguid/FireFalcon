@@ -11,12 +11,15 @@ def output_json(result) -> dict:
     return json.loads(result.stdout)
 
 
-def test_model_export_writes_xlsx_with_both_sheets(tmp_path, run_cli):
+@pytest.mark.parametrize("existing", [False, True])
+def test_model_export_writes_xlsx_with_both_sheets(tmp_path, run_cli, existing):
     from openpyxl import load_workbook
 
     assert run_cli("init", str(tmp_path)).returncode == 0
     config_path = ROOT / "examples/ridgeline/config.yaml"
     out_path = tmp_path / "model.xlsx"
+    if existing:
+        out_path.write_bytes(b"previous report")
 
     result = run_cli(
         "model-export",
@@ -36,6 +39,7 @@ def test_model_export_writes_xlsx_with_both_sheets(tmp_path, run_cli):
     assert out_path.exists()
     wb = load_workbook(out_path)
     assert set(wb.sheetnames) == {"Assumptions", "Model"}
+    wb.close()
 
 
 def test_model_export_fails_without_workspace(tmp_path, run_cli):

@@ -22,6 +22,8 @@ def command_model_export(args: argparse.Namespace) -> int:
         return _failure("model-export", root, "invalid_config", str(exc))
     try:
         out_path = _root(args.out)
+        if out_path.exists() and out_path.samefile(args.config):
+            raise ValueError("model export must not overwrite the source configuration")
         model_to_excel(cfg, out_path)
         wb = load_workbook(out_path)
         sheet_names = wb.sheetnames
