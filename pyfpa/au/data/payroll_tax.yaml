@@ -112,3 +112,66 @@ jurisdictions:
       Australia-wide wages of $100m+ (base 5.5% and threshold
       unchanged; large-group tier not modelled).
     source_url: https://treasury.nt.gov.au/dtf/territory-revenue-office/payroll-tax/payroll-tax-rates-and-thresholds
+
+# Monthly lodgers' due dates, checked 2026-09-29 at each revenue office. A
+# month's tax is due on monthly_day of the next month; June's goes into the
+# annual return, due on june_day of July; where december_day is given,
+# December's is due on that day of January. weekend_days_moved: the weekend
+# days from which a due date moves to the next day. Revenue offices and the
+# interpretation Acts also move a date on a public holiday, which
+# pyfpa.au.payroll_tax does not model. WA's Interpretation Act 1984 s 61 moves a
+# Saturday or Sunday; Tasmania's Acts Interpretation Act 1931 s 29(3) moves a
+# Sunday but not a Saturday. dated: a revenue office's published date for one
+# month, used in place of the rule because it is not a standing rule.
+due_dates:
+  NSW:
+    monthly_day: 7
+    december_day: 14
+    june_day: 28
+    weekend_days_moved: [Saturday, Sunday]
+    source_url: https://www.revenue.nsw.gov.au/taxes-duties-levies-royalties/payroll-tax/lodge-and-pay-returns/key-dates
+  VIC:
+    monthly_day: 7
+    june_day: 21
+    weekend_days_moved: [Saturday, Sunday]
+    source_url: https://www.sro.vic.gov.au/businesses-and-organisations/payroll-tax/managing-your-payroll-tax/lodge-your-monthly-return
+  QLD:
+    monthly_day: 7
+    december_day: 14
+    june_day: 21
+    weekend_days_moved: [Saturday, Sunday]
+    source_url: https://qro.qld.gov.au/payroll-tax/returns/due-dates/
+  WA:
+    monthly_day: 7
+    june_day: 21
+    weekend_days_moved: [Saturday, Sunday]
+    source_url: https://www.wa.gov.au/government/multi-step-guides/payroll-tax-employer-guide/payments-payroll-tax-employer-guide
+    weekend_source_url: https://classic.austlii.edu.au/au/legis/wa/consol_act/ia1984191/s61.html
+  SA:
+    monthly_day: 7
+    june_day: 28
+    weekend_days_moved: [Saturday, Sunday]
+    # RevenueSA's 2026-27 table; it says Christmas extensions "may" be given.
+    dated:
+      "2026-12": 2027-01-14
+    source_url: https://www.revenuesa.sa.gov.au/payroll-tax/returns-and-annual-reconciliation/monthly-returns
+  TAS:
+    monthly_day: 7
+    june_day: 21
+    weekend_days_moved: [Sunday]
+    # SRO Tasmania's Employers guide to payroll tax 2025-26: the annual
+    # adjustment return is due 21 July or the first working day after a weekend.
+    june_weekend_days_moved: [Saturday, Sunday]
+    source_url: https://www.sro.tas.gov.au/payroll-tax/lodge-your-return
+    weekend_source_url: https://classic.austlii.edu.au/au/legis/tas/consol_act/aia1931230/s29.html
+  ACT:
+    monthly_day: 7
+    december_day: 14
+    june_day: 28
+    weekend_days_moved: [Saturday, Sunday]
+    source_url: https://www.revenue.act.gov.au/business-taxes-and-levies/payroll-tax/lodging-returns
+  NT:
+    monthly_day: 21
+    june_day: 21
+    weekend_days_moved: [Saturday, Sunday]
+    source_url: https://treasury.nt.gov.au/dtf/territory-revenue-office/payroll-tax
