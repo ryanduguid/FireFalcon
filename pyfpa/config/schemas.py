@@ -116,6 +116,10 @@ class WorkingCapitalConfig(_ConfigModel):
     # a bad-debt expense in the month of sale, written off write_off_after_months later.
     bad_debt_share: float = Field(default=0.0, ge=0, lt=1)
     write_off_after_months: int | None = Field(default=None, ge=0)
+    # "days" sets closing inventory to dio_days of cost of sales and refuses a month
+    # whose purchases would be negative; "replenishment" buys up to that target but
+    # never a negative amount, so excess stock carries forward.
+    inventory_basis: Literal["days", "replenishment"] = "days"
 
     @model_validator(mode="after")
     def _one_receivables_basis(self) -> WorkingCapitalConfig:

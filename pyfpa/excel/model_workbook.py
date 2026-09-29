@@ -532,6 +532,8 @@ def model_to_excel(cfg: EntityConfig, path: str | Path) -> None:
         # Refuse before creating anything: the workbook's receivables formulas are
         # days-based and would not reproduce the engine's profile receipts.
         raise ValueError("the Excel export does not support collection_profile; its receivables are days-based")
+    if cfg.working_capital.inventory_basis != "days":
+        raise ValueError("the Excel export does not support inventory_basis replenishment; its inventory is days-based")
     cashflow_from_config(cfg)
     wb = Workbook()
     ws_assump = wb.active
