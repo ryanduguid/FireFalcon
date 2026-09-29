@@ -119,6 +119,21 @@ def test_the_provision_is_not_cash_and_the_payments_are():
     assert review_forecast(delayed, config).findings == ()
 
 
+def test_the_review_takes_its_cash_identity_from_the_config_not_the_frame():
+    # A year of losses has no tax and no payments, so tax_paid is all zeros;
+    # dropping it must still be a missing column, not a clean review.
+    config = _config([1.0] * 12, income_tax=IncomeTaxConfig())
+    df = cashflow_from_config(config)
+    assert df["tax"].abs().sum() == 0.0 and df["tax_paid"].abs().sum() == 0.0
+    codes = [(f.code, f.status.value) for f in review_forecast(df.drop(columns=["tax_paid"]), config).findings]
+    assert ("FR-MISSING-COLUMN", "FAIL") in codes
+    assert ("FR-IDENTITY-OPERATING-CASH-FLOW", "NOT_RUN") in codes
+    # A default-mode frame keeps the default identity even if tax_paid appears.
+    default = _config(LOSS_FIRST)
+    extra = cashflow_from_config(default).assign(tax_paid=1.0)
+    assert review_forecast(extra, default).findings == ()
+
+
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [

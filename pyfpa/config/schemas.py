@@ -105,7 +105,9 @@ class IncomeTaxConfig(_ConfigModel):
     loss can reverse an earlier month's tax. Cash follows `payments`, never the
     provision. `opening_balances.nol` is the tax loss available for deduction at
     the start: the library does not apply the continuity tests in Division 165
-    of the Income Tax Assessment Act 1997.
+    of the Income Tax Assessment Act 1997. Available loss is used in full against
+    positive income; a company's choice to deduct less, or nil (s 36-17), is not
+    modelled.
     """
 
     # Whether a loss for a forecast income year may be deducted in a later one.

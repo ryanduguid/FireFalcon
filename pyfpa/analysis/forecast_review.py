@@ -31,8 +31,9 @@ _IDENTITIES: tuple[tuple[str, tuple[str, ...], Callable[[pd.Series], float]], ..
     ("change_in_cash", ("free_cash_flow", "principal"), lambda r: r["free_cash_flow"] - r["principal"]),
 )
 _ROLL_FORWARD = ("ending_cash", "change_in_cash")
-# With an income-year provision the frame carries tax_paid: the provision is added
-# back and the tax actually paid is deducted.
+# With an income-year provision (cfg.income_tax) the frame must carry tax_paid: the
+# provision is added back and the tax actually paid is deducted. The config, not the
+# frame's columns, decides, so a dropped tax_paid is a missing column, not a pass.
 _OPERATING_CASH_FLOW_WITH_TAX_PAID = (
     "operating_cash_flow", ("net_income", "da", "wc_cash_impact", "tax", "tax_paid"),
     lambda r: r["net_income"] + r["da"] + r["wc_cash_impact"] + r["tax"] - r["tax_paid"],
@@ -94,7 +95,7 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
         findings.append(Finding("FR-INDEX", Status.FAIL, None, None, None, "; ".join(index_problems)))
 
     identities = _IDENTITIES
-    if "tax_paid" in forecast.columns:
+    if cfg.income_tax is not None:
         identities = tuple(_OPERATING_CASH_FLOW_WITH_TAX_PAID if item[0] == "operating_cash_flow" else item
                            for item in _IDENTITIES)
     needed = sorted({c for column, inputs, _ in identities for c in (column, *inputs)} | set(_ROLL_FORWARD))
