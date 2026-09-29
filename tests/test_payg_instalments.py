@@ -57,13 +57,23 @@ def test_payments_by_month_is_ready_for_the_income_year_tax_schedule():
         ({}, "either rate or notified_amounts"),
         ({"rate": 1.5}, "rate"),
         ({"notified_amounts": {"2026-09": 400.0}}, "no amount for the quarter ending 2026-12"),
-        ({"notified_amounts": {"2026-09": -1.0, "2026-12": 0.0}}, "negative"),
-        ({"notified_amounts": {"2026-09": 1.0, "2026-12": 1.0, "2027-03": 1.0}}, "outside instalment_income: 2027-03"),
+        ({"notified_amounts": {"2026-09": -1.0, "2026-12": 0.0}}, "finite amount of 0 or more"),
+        ({"notified_amounts": {"2026-09": float("nan"), "2026-12": 0.0}}, "finite amount of 0 or more"),
+        ({"notified_amounts": {"2026-09": 1.0, "2026-12": float("inf")}}, "finite amount of 0 or more"),
+        ({"notified_amounts": {"2026-09": 1.0, "2026-12": 1.0, "2027-03": 1.0}}, "does not finish: 2027-03"),
     ],
 )
 def test_the_method_must_be_stated_once(kwargs, message):
     with pytest.raises(ValueError, match=message):
         payg_instalment_schedule(INCOME, deferred_bas_payer=False, **kwargs)
+
+
+def test_an_amount_for_a_quarter_the_income_does_not_finish_is_refused():
+    # Five months finish only the September quarter, so a December amount has
+    # no instalment to attach to and would otherwise vanish.
+    with pytest.raises(ValueError, match="does not finish: 2026-12"):
+        payg_instalment_schedule(INCOME.iloc[:5], deferred_bas_payer=False,
+                                 notified_amounts={"2026-09": 1.0, "2026-12": 1.0})
 
 
 @pytest.mark.parametrize(

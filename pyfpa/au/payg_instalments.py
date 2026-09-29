@@ -20,6 +20,7 @@ the two-instalment option and a head company's dates are not modelled.
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Mapping
 
@@ -47,7 +48,8 @@ def payg_instalment_schedule(
     ("2026-09"). `instalment_income` is monthly with a PeriodIndex, runs without
     gaps or repeats from the start of an income-year quarter, and holds finite
     amounts; a last quarter it does not finish is left out, because its
-    instalment is not yet known.
+    instalment is not yet known. Each notified amount must be finite and 0 or
+    more, and must belong to a quarter the schedule includes.
     """
     if (rate is None) == (notified_amounts is None):
         raise ValueError("give either rate or notified_amounts")
@@ -59,6 +61,7 @@ def payg_instalment_schedule(
     if not len(index) or index[0].month % 3 != 1:
         raise ValueError("instalment_income must start at the beginning of a quarter (July, October, January or April)")
     rows = []
+    scheduled: set[str] = set()
     for quarter, income in instalment_income.groupby(index.asfreq("Q-JUN")):
         quarter_end = quarter.asfreq("M", how="end")
         if quarter_end > index.max():
@@ -71,13 +74,17 @@ def payg_instalment_schedule(
             if str(quarter_end) not in amounts:
                 raise ValueError(f"notified_amounts has no amount for the quarter ending {quarter_end}")
             amount = float(amounts[str(quarter_end)])
-            if amount < 0:
-                raise ValueError(f"the notified amount for the quarter ending {quarter_end} is negative")
+            if not math.isfinite(amount) or amount < 0:
+                raise ValueError(
+                    f"the notified amount for the quarter ending {quarter_end} must be a finite amount of 0 or more")
         rows.append({"quarter": str(quarter), "due_date": due, "amount": amount})
-    if notified_amounts is not None:
-        unused = sorted(set(amounts) - {str(q.asfreq("M", how="end")) for q in index.asfreq("Q-JUN").unique()})
-        if unused:
-            raise ValueError("notified_amounts names quarters outside instalment_income: " + ", ".join(unused))
+        scheduled.add(str(quarter_end))
+    # An amount for a quarter the schedule leaves out, past the series or not
+    # finished by it, would otherwise vanish without a word.
+    unused = sorted(set(amounts) - scheduled)
+    if unused:
+        raise ValueError("notified_amounts names quarters that instalment_income does not finish: "
+                         + ", ".join(unused))
     return pd.DataFrame(rows, columns=["quarter", "due_date", "amount"])
 
 
