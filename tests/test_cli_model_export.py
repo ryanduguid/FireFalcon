@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -73,3 +75,36 @@ def test_model_export_fails_on_invalid_config(tmp_path, run_cli):
     assert result.returncode == 1
     payload = output_json(result)
     assert payload["ok"] is False
+
+
+@pytest.mark.parametrize("alias_kind", ["same", "relative", "source symlink", "output symlink", "hard link"])
+def test_model_export_preserves_configuration_when_output_aliases_it(tmp_path, run_cli, alias_kind):
+    assert run_cli("init", str(tmp_path)).returncode == 0
+    config = tmp_path / "config.yaml"
+    original = (ROOT / "examples/ridgeline/config.yaml").read_bytes()
+    config.write_bytes(original)
+    source, output = config, config
+    try:
+        if alias_kind == "relative":
+            (tmp_path / "child").mkdir()
+            output = tmp_path / "child" / ".." / config.name
+        elif alias_kind == "source symlink":
+            source = tmp_path / "config-link.yaml"
+            source.symlink_to(config)
+        elif alias_kind == "output symlink":
+            output = tmp_path / "model.xlsx"
+            output.symlink_to(config)
+        elif alias_kind == "hard link":
+            output = tmp_path / "model.xlsx"
+            output.hardlink_to(config)
+    except OSError as error:
+        pytest.skip(f"Cannot create a local file link: {error}")
+
+    result = run_cli("model-export", str(tmp_path), "--config", str(source), "--out", str(output))
+
+    assert config.read_bytes() == original
+    assert source.read_bytes() == original
+    assert result.returncode == 1
+    payload = output_json(result)
+    assert payload["ok"] is False
+    assert payload["error"]["type"] == "export_failed"
