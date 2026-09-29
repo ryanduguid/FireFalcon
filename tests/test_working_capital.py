@@ -1,3 +1,9 @@
+import pandas as pd
+import pytest
+
+from pyfpa.config.schemas import EntityConfig, OpeningBalances, WorkingCapitalConfig
+from pyfpa.excel.model_workbook import model_to_excel
+from pyfpa.models.cashflow import cashflow_from_config
 from pyfpa.models.cogs import cogs_from_config
 from pyfpa.models.revenue import revenue_from_config
 from pyfpa.models.working_capital import working_capital_from_config
@@ -22,3 +28,87 @@ def test_working_capital_balances_and_cash_impact(sample_config):
     assert round(df["wc_cash_impact"].iloc[0], 6) == -50.0
     # month 2 balances flat -> deltas 0 -> cash impact 0
     assert round(df["wc_cash_impact"].iloc[1], 6) == 0.0
+
+
+# A days-based balance is a month's flow times days/30, so with k = days/30 the
+# implied receipts are k*R[t-1] - (k-1)*R[t]. Above 30 days they turn negative
+# once revenue grows by more than k/(k-1) in a month; purchases and supplier
+# payments fail the same way. The cases below use July to October 2026.
+
+
+def _frames(revenue: list[float], cogs: list[float]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    months = pd.period_range("2026-07", periods=len(revenue), freq="M")
+    return pd.DataFrame({"total": revenue}, index=months), pd.DataFrame({"total": cogs}, index=months)
+
+
+def _config(base: EntityConfig, *, dso: float = 0, dpo: float = 0, dio: float = 0,
+            ar: float = 0, ap: float = 0, inventory: float = 0) -> EntityConfig:
+    return base.model_copy(update={
+        "working_capital": WorkingCapitalConfig(dso_days=dso, dpo_days=dpo, dio_days=dio),
+        "opening_balances": OpeningBalances(ar=ar, ap=ap, inventory=inventory),
+    })
+
+
+def test_a_revenue_jump_that_implies_negative_customer_receipts_is_refused(sample_config):
+    # DSO 60 (k=2): AR goes 200 -> 600, so August receipts are 300 - 400 = -100.
+    revenue, cogs = _frames([100, 300], [0, 0])
+    with pytest.raises(ValueError, match=r"negative customer receipts of -100\.00 in 2026-08"):
+        working_capital_from_config(_config(sample_config, dso=60, ar=200), revenue, cogs)
+
+
+def test_the_excel_export_refuses_what_the_engine_refuses(sample_config, tmp_path):
+    # DSO 60 from a nil opening balance puts January AR at 200, so January's
+    # receipts are 100 - 200 = -100. The workbook must not be written.
+    cfg = _config(sample_config, dso=60)
+    path = tmp_path / "model.xlsx"
+    with pytest.raises(ValueError, match="negative customer receipts"):
+        cashflow_from_config(cfg)
+    with pytest.raises(ValueError, match="negative customer receipts"):
+        model_to_excel(cfg, path)
+    assert not path.exists()
+
+
+def test_a_cost_fall_that_implies_negative_purchases_is_refused(sample_config):
+    # DIO 60: inventory goes 600 -> 200, so August purchases are 100 - 400 = -300.
+    revenue, cogs = _frames([0, 0], [300, 100])
+    with pytest.raises(ValueError, match=r"negative purchases of -300\.00 in 2026-08"):
+        working_capital_from_config(_config(sample_config, dio=60, inventory=600), revenue, cogs)
+
+
+def test_a_cost_jump_that_implies_negative_supplier_payments_is_refused(sample_config):
+    # DPO 60, no inventory: purchases 300 but AP rises 200 -> 600, so payments are -100.
+    revenue, cogs = _frames([0, 0], [100, 300])
+    with pytest.raises(ValueError, match=r"negative supplier payments of -100\.00 in 2026-08"):
+        working_capital_from_config(_config(sample_config, dpo=60, ap=200), revenue, cogs)
+
+
+def test_the_first_month_is_checked_against_the_opening_balances(sample_config):
+    # DSO 60 from a nil opening balance: July AR of 600 needs receipts of 300 - 600 = -300.
+    revenue, cogs = _frames([300], [0])
+    with pytest.raises(ValueError, match=r"negative customer receipts of -300\.00 in 2026-07"):
+        working_capital_from_config(_config(sample_config, dso=60), revenue, cogs)
+
+
+def test_the_earliest_month_then_the_first_flow_is_reported(sample_config):
+    # August has negative receipts and negative purchases, and September would fail
+    # too; the error names August's customer receipts.
+    revenue, cogs = _frames([100, 300, 900], [300, 100, 100])
+    config = _config(sample_config, dso=60, dio=60, ar=200, inventory=600)
+    with pytest.raises(ValueError, match=r"customer receipts of -100\.00 in 2026-08"):
+        working_capital_from_config(config, revenue, cogs)
+
+
+def test_flows_of_exactly_zero_are_accepted(sample_config):
+    # DSO 45 (k=1.5): revenue tripling gives receipts of 1.5*100 - 0.5*300 = 0.
+    revenue, cogs = _frames([100, 300], [0, 0])
+    df = working_capital_from_config(_config(sample_config, dso=45, ar=150), revenue, cogs)
+    assert df["ar"].tolist() == [150.0, 450.0]
+    assert df["wc_cash_impact"].tolist() == [0.0, -300.0]
+
+
+def test_growth_the_days_model_can_follow_is_unchanged(sample_config):
+    # DSO 45 with revenue 100, 200, 150, 250: receipts 100, 50, 225, 100, all positive.
+    revenue, cogs = _frames([100, 200, 150, 250], [0, 0, 0, 0])
+    df = working_capital_from_config(_config(sample_config, dso=45, ar=150), revenue, cogs)
+    assert df["ar"].tolist() == [150.0, 300.0, 225.0, 375.0]
+    assert df["wc_cash_impact"].tolist() == [0.0, -150.0, 75.0, -150.0]
