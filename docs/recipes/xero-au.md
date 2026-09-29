@@ -186,11 +186,19 @@ python3 -m pyfpa.cli reconcile-source <company-root> --source-id xero-au \
 
 ## Connector
 
-Only when recurring access is worth it:
+Only when recurring access is worth it. The connector's pulls are a source of
+their own, so register them under a separate ID and repeat the mappings for it:
 
 ```bash
+python3 -m pyfpa.cli source-register <company-root> \
+  --source-id xero-au-api --kind api \
+  --location "Xero API, P&L and balance sheet reports" \
+  --entity "<Entity Pty Ltd>" --currency AUD \
+  --period 2026-07 \
+  --extraction-method "Monthly pull through the Xero API, GST-exclusive"
+# Repeat each mapping-register command above with --source-id xero-au-api.
 python3 -m pyfpa.cli connector-scaffold <company-root> --name xero-au \
-  --source-id xero-au --description "Monthly Xero P&L + BS pull" \
+  --source-id xero-au-api --description "Monthly Xero P&L + BS pull" \
   --auth-method host_environment --fixture data/xero_pl_jul2026.csv
 python3 -m pyfpa.cli connector-validate <company-root> --name xero-au
 ```
@@ -199,6 +207,24 @@ The scaffolded connector runs in fixture mode as a contract test. Live
 extraction (Xero API, OAuth 2.0 PKCE, token refresh) is implemented
 separately per company with host-managed credentials; register the
 tested recurring command with `entrypoint-register`.
+
+Keeping API pulls under `xero-au-api` with `--kind api`, and reports exported
+by hand under `xero-au` as `accounting_system`, means every source records
+whether it came through the Xero API. Xero's
+[Developer Platform terms](https://developer.xero.com/xero-developer-platform-terms-conditions)
+(last updated 4 December 2025, applying from 2 March 2026 to developers
+registered before 4 December 2025) treat data obtained through the API, raw or
+processed, as API data. They limit it to the app's approved use case and bar
+using it to train, fine-tune, adapt or enhance AI models, which they define to
+include predictive analytics tools. `fpa-backtest-learn`, `fpa-research-loop`
+and `fpa-portfolio-learn` change models, priors or skills from actuals, so
+before they use an `api` Xero source the company owner confirms and records
+under `.fpa/decisions/` that the current terms and the app's approved use case
+have been checked, including the AI-model restriction. Portfolio learning
+across clients also needs a check against the terms' restriction on
+aggregating and supplying user data or API data to another app or third party.
+This recipe does not decide whether a particular workflow falls within the
+terms.
 
 ## Australian specifics to check every time
 
