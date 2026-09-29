@@ -119,6 +119,7 @@ itself make that reuse permissible, so read [SECURITY.md](SECURITY.md) and the
 - [Upstream workbench and company workspace](docs/upstream-workbench.md)
 - [Agent CLI reference](docs/cli-reference.md)
 - [Python kernel](docs/python-kernel.md)
+- [Supplier information for a firm's AI register](docs/ai-register-entry.md)
 - [Contributing](CONTRIBUTING.md) and [security reporting](SECURITY.md)
 
 MIT licensed. Guiderail's upstream work and Ryan Duguid's additions retain their attribution in [LICENSE](LICENSE).
