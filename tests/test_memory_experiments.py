@@ -1,4 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from threading import Barrier
+
 import pytest
+import yaml
 from pydantic import ValidationError
 
 from pyfpa.memory.experiments import (
@@ -47,12 +52,79 @@ def test_experiment_round_trip(tmp_path):
 
 def test_experiment_history_does_not_overwrite_implicitly(tmp_path):
     experiment = _accepted_experiment()
-    save_experiment(experiment, tmp_path)
+    path = save_experiment(experiment, tmp_path)
+    updated = experiment.model_copy(update={"hypothesis": "A revised hypothesis."})
 
     with pytest.raises(FileExistsError):
-        save_experiment(experiment, tmp_path)
+        save_experiment(updated, tmp_path)
+    assert load_experiment(path) == experiment
 
-    save_experiment(experiment, tmp_path, overwrite=True)
+    assert save_experiment(updated, tmp_path, overwrite=True) == path
+    assert load_experiment(path) == updated
+
+
+def test_experiment_preserves_an_intervening_creation(tmp_path, monkeypatch):
+    experiment = _accepted_experiment()
+    competing = experiment.model_copy(update={"hypothesis": "The competing saved hypothesis."})
+    path = tmp_path / f"{experiment.slug}.experiment.yaml"
+    original_open = Path.open
+    inserted = False
+
+    def open_after_competing_save(destination, *args, **kwargs):
+        nonlocal inserted
+        if destination == path and not inserted:
+            inserted = True
+            with original_open(path, "x", encoding="utf-8") as output:
+                output.write(yaml.safe_dump(competing.model_dump(), sort_keys=False))
+        return original_open(destination, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", open_after_competing_save)
+    with pytest.raises(FileExistsError):
+        save_experiment(experiment, tmp_path)
+    assert inserted
+    assert load_experiment(path) == competing
+
+
+def test_only_one_concurrent_experiment_creator_succeeds(tmp_path, monkeypatch):
+    first = _accepted_experiment()
+    second = first.model_copy(update={"hypothesis": "A different concurrent hypothesis."})
+    path = tmp_path / f"{first.slug}.experiment.yaml"
+    original_open = Path.open
+    barrier = Barrier(2)
+
+    def open_together(destination, *args, **kwargs):
+        mode = kwargs.get("mode", args[0] if args else "r")
+        if destination == path and mode in {"w", "x"}:
+            barrier.wait(timeout=10)
+        return original_open(destination, *args, **kwargs)
+
+    def save(record):
+        try:
+            save_experiment(record, tmp_path)
+        except FileExistsError:
+            return None
+        return record
+
+    monkeypatch.setattr(Path, "open", open_together)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(save, [first, second]))
+    winners = [result for result in results if result is not None]
+    assert len(winners) == 1
+    assert load_experiment(path) == winners[0]
+
+
+def test_experiment_serialisation_failure_preserves_an_existing_record(tmp_path, monkeypatch):
+    experiment = _accepted_experiment()
+    path = save_experiment(experiment, tmp_path)
+    before = path.read_bytes()
+
+    def fail_serialisation(*args, **kwargs):
+        raise ValueError("Fabricated serialisation failure")
+
+    monkeypatch.setattr(yaml, "safe_dump", fail_serialisation)
+    with pytest.raises(ValueError, match="serialisation"):
+        save_experiment(experiment, tmp_path, overwrite=True)
+    assert path.read_bytes() == before
 
 
 def test_accepted_experiment_requires_ratification_and_passing_checks():
