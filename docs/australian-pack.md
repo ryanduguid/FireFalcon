@@ -17,6 +17,8 @@ data-access-recipe and industry-pack paths in CONTRIBUTING:
   - super guarantee due dates under Payday Super and the quarterly rules
     before it, on a business-day calendar the caller passes
     (`pyfpa.au.super_guarantee`)
+  - payroll tax due dates for monthly lodgers in all eight jurisdictions
+    (`pyfpa.au.payroll_tax`)
 - **GST/BAS** - net GST from GST-exclusive series, monthly and
   quarterly settlement schedules, straight into the 13-week model
   (`pyfpa.au.gst`)
