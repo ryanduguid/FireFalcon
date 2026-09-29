@@ -102,9 +102,11 @@ credits require separate assessment; the zero-credit example does not decide the
 
 `monthly_gst` applies supplied proportions; it does not classify transactions or
 attribute invoices and payments to tax periods. Reconcile cash-basis inputs before
-using them. The schedule uses original BAS due dates, without weekend, holiday or
-agent extensions; a refund on that date is a forecast assumption, not a receipt
-promise. Explicit rate overrides must be finite and non-negative. Zero remains
+using them. The schedule uses original BAS due dates, moved from a weekend to the
+Monday but not for public holidays or agent extensions; a refund on that date is
+a forecast assumption, not a receipt promise. A period ending after
+`reviewed_until` in `gst_bas.yaml` (30 June 2027) raises until the dates are
+re-checked. Explicit rate overrides must be finite and non-negative. Zero remains
 available for scenario modelling; it does not establish a GST exemption.
 
 Worked examples on this fork:
