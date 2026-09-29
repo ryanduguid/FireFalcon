@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from pyfpa.memory.corrections import Correction, load_corrections, save_correction
+from pyfpa import Correction, load_corrections, save_correction
 
 
 @pytest.mark.parametrize("overwrite", [False, True])
@@ -55,3 +55,38 @@ def test_correction_record_reports_path_errors_without_writing(tmp_path, run_cli
     assert json.loads(result.stdout)["error"]["type"] == "invalid_correction"
     assert not (tmp_path / "outside.md").exists()
     assert load_corrections(tmp_path / ".fpa" / "corrections") == []
+
+
+@pytest.mark.parametrize("slug", [
+    "", "record:stream", "C:outside", "C:\\outside", "\\\\server\\share\\outside", "bad\0name",
+    "NUL", "con.old", "Con .old", "COM1", "LPT9", "com²", "lpt³", "CONIN$", "CONOUT$",
+])
+def test_correction_rejects_special_paths_before_io(tmp_path, monkeypatch, slug):
+    def refuse_open(*args, **kwargs):
+        pytest.fail("Invalid correction slug reached a file write")
+
+    # Do not let the baseline touch a device or a path outside the temporary tree.
+    monkeypatch.setattr("pathlib.Path.open", refuse_open)
+    directory = tmp_path / "absent"
+    correction = Correction(slug=slug, type="context", target="demo", date="2026-09-29")
+    with pytest.raises(ValueError, match="slug"):
+        save_correction(correction, directory)
+    assert not directory.exists()
+
+
+def test_correction_checks_the_current_slug_when_saving(tmp_path):
+    correction = Correction(slug="original", type="context", target="demo", date="2026-09-29")
+    correction.slug = "../changed"
+    with pytest.raises(ValueError, match="slug"):
+        save_correction(correction, tmp_path / "corrections")
+    assert not (tmp_path / "changed.md").exists()
+
+
+def test_correction_explicit_overwrite_replaces_an_ordinary_record(tmp_path):
+    correction = Correction(slug="Revision", type="context", target="demo", date="2026-09-29")
+    save_correction(correction, tmp_path)
+    correction.notes = "Revised explanation."
+    with pytest.raises(FileExistsError):
+        save_correction(correction, tmp_path)
+    save_correction(correction, tmp_path, overwrite=True)
+    assert load_corrections(tmp_path)[0].notes == "Revised explanation."
