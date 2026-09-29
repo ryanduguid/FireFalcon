@@ -112,3 +112,55 @@ jurisdictions:
       Australia-wide wages of $100m+ (base 5.5% and threshold
       unchanged; large-group tier not modelled).
     source_url: https://treasury.nt.gov.au/dtf/territory-revenue-office/payroll-tax/payroll-tax-rates-and-thresholds
+
+# Monthly lodgers' due dates, checked 2026-09-29 at each revenue office. A
+# month's tax is due on monthly_day of the next month; June's goes into the
+# annual return, due on june_day of July; where december_day is given,
+# December's is due on that day of January. next_business_day: the revenue
+# office moves a due date on a weekend or public holiday to the next business
+# day (pyfpa.au.payroll_tax moves weekends only). RevenueWA and SRO Tasmania
+# state no such rule for these returns.
+due_dates:
+  NSW:
+    monthly_day: 7
+    december_day: 14
+    june_day: 28
+    next_business_day: true
+    source_url: https://www.revenue.nsw.gov.au/taxes-duties-levies-royalties/payroll-tax/lodge-and-pay-returns/key-dates
+  VIC:
+    monthly_day: 7
+    june_day: 21
+    next_business_day: true
+    source_url: https://www.sro.vic.gov.au/businesses-and-organisations/payroll-tax/managing-your-payroll-tax/lodge-your-monthly-return
+  QLD:
+    monthly_day: 7
+    december_day: 14
+    june_day: 21
+    next_business_day: true
+    source_url: https://qro.qld.gov.au/payroll-tax/returns/due-dates/
+  WA:
+    monthly_day: 7
+    june_day: 21
+    next_business_day: false
+    source_url: https://www.wa.gov.au/government/multi-step-guides/payroll-tax-employer-guide/payments-payroll-tax-employer-guide
+  SA:
+    monthly_day: 7
+    june_day: 28
+    next_business_day: true
+    source_url: https://www.revenuesa.sa.gov.au/payrolltax/returns-and-annual-reconciliation/monthly-returns
+  TAS:
+    monthly_day: 7
+    june_day: 21
+    next_business_day: false
+    source_url: https://www.sro.tas.gov.au/payroll-tax/lodge-your-return
+  ACT:
+    monthly_day: 7
+    december_day: 14
+    june_day: 28
+    next_business_day: true
+    source_url: https://www.revenue.act.gov.au/business-taxes-and-levies/payroll-tax/lodging-returns
+  NT:
+    monthly_day: 21
+    june_day: 21
+    next_business_day: true
+    source_url: https://treasury.nt.gov.au/dtf/territory-revenue-office/payroll-tax
