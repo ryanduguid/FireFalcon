@@ -86,9 +86,9 @@ _SHARE_TOLERANCE = 1e-9
 _Share = Annotated[float, Field(ge=0)]
 
 
-def _require_shares_add_to_one(shares: list[float] | None, name: str) -> None:
-    if shares is not None and abs(sum(shares) - 1.0) > _SHARE_TOLERANCE:
-        raise ValueError(f"{name} shares must add up to 1, not {sum(shares):g}")
+def _require_shares_add_to(shares: list[float] | None, total: float, name: str) -> None:
+    if shares is not None and abs(sum(shares) - total) > _SHARE_TOLERANCE:
+        raise ValueError(f"{name} shares must add up to {total:g}, not {sum(shares):g}")
 
 
 class WorkingCapitalConfig(_ConfigModel):
@@ -100,6 +100,10 @@ class WorkingCapitalConfig(_ConfigModel):
     collection_profile: list[_Share] | None = Field(default=None, min_length=1)
     # Shares of the opening receivables received in the first forecast month and after.
     opening_ar_collection_profile: list[_Share] | None = Field(default=None, min_length=1)
+    # With a collection profile: the share of each month's revenue never collected,
+    # a bad-debt expense in the month of sale, written off write_off_after_months later.
+    bad_debt_share: float = Field(default=0.0, ge=0, lt=1)
+    write_off_after_months: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _one_receivables_basis(self) -> WorkingCapitalConfig:
@@ -109,10 +113,16 @@ class WorkingCapitalConfig(_ConfigModel):
             raise ValueError("give dso_days or collection_profile")
         if self.opening_ar_collection_profile is not None and self.collection_profile is None:
             raise ValueError("opening_ar_collection_profile applies only with collection_profile")
-        # Shares adding up to 1 collect every dollar once; write-offs would need
-        # a bad-debt expense line, which this model does not have.
-        _require_shares_add_to_one(self.collection_profile, "collection_profile")
-        _require_shares_add_to_one(self.opening_ar_collection_profile, "opening_ar_collection_profile")
+        if self.bad_debt_share and self.collection_profile is None:
+            raise ValueError("bad_debt_share needs collection_profile, which states the receipts directly")
+        if self.bad_debt_share and self.write_off_after_months is None:
+            raise ValueError("bad_debt_share needs write_off_after_months")
+        if not self.bad_debt_share and self.write_off_after_months is not None:
+            raise ValueError("write_off_after_months applies only with bad_debt_share")
+        # Every recognised dollar is collected once or written off once. Opening
+        # receivables carry no allowance, so their profile adds up to 1.
+        _require_shares_add_to(self.collection_profile, 1.0 - self.bad_debt_share, "collection_profile")
+        _require_shares_add_to(self.opening_ar_collection_profile, 1.0, "opening_ar_collection_profile")
         return self
 
 

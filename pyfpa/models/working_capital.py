@@ -39,24 +39,35 @@ def _refuse_impossible_flows(
                 )
 
 
-def _receivables(wc: WorkingCapitalConfig, revenue: pd.Series, opening_ar: float) -> pd.Series:
-    """Closing receivables by month, from days of revenue or a collection profile.
+def _profile_receivables(wc: WorkingCapitalConfig, revenue: pd.Series, opening_ar: float) -> pd.DataFrame:
+    """Receipts, bad debts, write-offs and the receivables they leave, by month.
 
-    With a profile, receipts are the profile's shares of each month's revenue plus
-    the opening profile's shares of the opening balance; shares that fall after the
-    last forecast month stay in closing receivables.
+    Receipts are the profile's shares of each month's revenue plus the opening
+    profile's shares of the opening balance; shares that fall after the last
+    forecast month stay in receivables. `bad_debt_share` of each month's revenue
+    is expensed that month and written off `write_off_after_months` later, when
+    gross receivables and the allowance fall together with no cash. Opening
+    receivables carry no allowance.
     """
-    if wc.collection_profile is None:
-        if wc.dso_days is None:  # a config built without validation, e.g. model_copy
-            raise ValueError("working capital needs dso_days or collection_profile")
-        return revenue * (wc.dso_days / _DAYS_PER_MONTH)
     values = revenue.to_numpy(dtype=float)
-    receipts = np.zeros(len(values))
-    for lag, share in enumerate(wc.collection_profile[: len(values)]):
-        receipts[lag:] += share * values[: len(values) - lag]
-    for month, share in enumerate((wc.opening_ar_collection_profile or [])[: len(values)]):
+    months = len(values)
+    receipts = np.zeros(months)
+    for lag, share in enumerate((wc.collection_profile or [])[:months]):
+        receipts[lag:] += share * values[: months - lag]
+    for month, share in enumerate((wc.opening_ar_collection_profile or [])[:months]):
         receipts[month] += share * opening_ar
-    return opening_ar + (revenue - pd.Series(receipts, index=revenue.index)).cumsum()
+    bad_debts = values * wc.bad_debt_share
+    write_offs = np.zeros(months)
+    lag = wc.write_off_after_months or 0
+    if lag < months:
+        write_offs[lag:] = bad_debts[: months - lag]
+    gross = opening_ar + np.cumsum(values - receipts - write_offs)
+    allowance = np.cumsum(bad_debts - write_offs)
+    return pd.DataFrame(
+        {"receipts": receipts, "bad_debts": bad_debts, "write_offs": write_offs,
+         "gross_ar": gross, "allowance": allowance, "ar": gross - allowance},
+        index=revenue.index,
+    )
 
 
 def working_capital_from_config(
@@ -70,7 +81,9 @@ def working_capital_from_config(
     models. If a supplied opening balance diverges from the day-count-implied
     balance, the full gap flows through month 1 as a one-time working-capital
     cash impact. Under a collection profile, opening receivables are collected by
-    `opening_ar_collection_profile` instead.
+    `opening_ar_collection_profile` instead. With `bad_debt_share`, `ar` is net of
+    the bad-debt allowance and the frame adds receipts, bad_debts, write_offs,
+    gross_ar and allowance.
 
     Raises ValueError when the balances imply negative customer receipts,
     purchases or supplier payments in any month, naming the first such month
@@ -80,7 +93,14 @@ def working_capital_from_config(
     wc = cfg.working_capital
     opening = cfg.opening_balances
 
-    ar = _receivables(wc, revenue_df["total"], opening.ar)
+    receivables = None
+    if wc.collection_profile is not None:
+        receivables = _profile_receivables(wc, revenue_df["total"], opening.ar)
+        ar = receivables["ar"]
+    elif wc.dso_days is not None:
+        ar = revenue_df["total"] * (wc.dso_days / _DAYS_PER_MONTH)
+    else:  # a config built without validation, e.g. model_copy
+        raise ValueError("working capital needs dso_days or collection_profile")
     ap = cogs_df["total"] * (wc.dpo_days / _DAYS_PER_MONTH)
     inventory = cogs_df["total"] * (wc.dio_days / _DAYS_PER_MONTH)
 
@@ -91,6 +111,9 @@ def working_capital_from_config(
         d_inventory=df["inventory"].diff().fillna(df["inventory"] - opening.inventory),
     )
     _refuse_impossible_flows(revenue_df["total"], cogs_df["total"], df)
-    return df.assign(
+    df = df.assign(
         wc_cash_impact=(-df["d_ar"] + df["d_ap"] - df["d_inventory"])
     )
+    if receivables is not None and wc.bad_debt_share:
+        df = df.join(receivables.drop(columns="ar"))
+    return df

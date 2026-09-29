@@ -34,6 +34,12 @@ _ROLL_FORWARD = ("ending_cash", "change_in_cash")
 # With an income-year provision (cfg.income_tax) the frame must carry tax_paid: the
 # provision is added back and the tax actually paid is deducted. The config, not the
 # frame's columns, decides, so a dropped tax_paid is a missing column, not a pass.
+# With bad debts (cfg.working_capital.bad_debt_share) the frame must carry them,
+# and EBITDA is gross profit less opex and bad debts.
+_EBITDA_WITH_BAD_DEBTS = (
+    "ebitda", ("gross_profit", "opex", "bad_debts"),
+    lambda r: r["gross_profit"] - r["opex"] - r["bad_debts"],
+)
 _OPERATING_CASH_FLOW_WITH_TAX_PAID = (
     "operating_cash_flow", ("net_income", "da", "wc_cash_impact", "tax", "tax_paid"),
     lambda r: r["net_income"] + r["da"] + r["wc_cash_impact"] + r["tax"] - r["tax_paid"],
@@ -94,10 +100,12 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
     if index_problems:
         findings.append(Finding("FR-INDEX", Status.FAIL, None, None, None, "; ".join(index_problems)))
 
-    identities = _IDENTITIES
+    replaced: dict[str, tuple[str, tuple[str, ...], Callable[[pd.Series], float]]] = {}
     if cfg.income_tax is not None:
-        identities = tuple(_OPERATING_CASH_FLOW_WITH_TAX_PAID if item[0] == "operating_cash_flow" else item
-                           for item in _IDENTITIES)
+        replaced["operating_cash_flow"] = _OPERATING_CASH_FLOW_WITH_TAX_PAID
+    if cfg.working_capital.bad_debt_share:
+        replaced["ebitda"] = _EBITDA_WITH_BAD_DEBTS
+    identities = tuple(replaced.get(item[0], item) for item in _IDENTITIES)
     needed = sorted({c for column, inputs, _ in identities for c in (column, *inputs)} | set(_ROLL_FORWARD))
     missing = [column for column in needed if column not in forecast.columns]
     if missing:
