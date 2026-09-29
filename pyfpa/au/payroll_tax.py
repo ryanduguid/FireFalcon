@@ -6,9 +6,10 @@ in the Northern Territory). June's goes into the annual return, due on 21 or 28
 July. In NSW, Queensland and the ACT, December's is due on 14 January; for SA
 the data holds RevenueSA's published 14 January 2027 for December 2026 only,
 because its Christmas extensions are discretionary. A due date on a weekend
-moves to the next day, except that Tasmania moves a Sunday but not a Saturday
-(Acts Interpretation Act 1931 (Tas) s 29(3)). Public holidays are not modelled,
-so a date on one comes out a day early.
+moves to the next day, except that Tasmania moves a monthly date from a Sunday
+but not a Saturday (Acts Interpretation Act 1931 (Tas) s 29(3)); its annual
+return moves from either weekend day, as SRO Tasmania's employer guide says.
+Public holidays are not modelled, so a date on one comes out a day early.
 
 The forecast's monthly payroll tax is an annualised estimate, so the annual
 return has no adjustment to time: June's amount is paid on the annual return's
@@ -42,6 +43,7 @@ def payroll_tax_due_rule(jurisdiction: str) -> DueRule:
         raise ValueError(f"unknown jurisdiction {jurisdiction!r}; expected one of {JURISDICTIONS}")
     rule = rules[key]
     moved = {_WEEKEND[day] for day in rule["weekend_days_moved"]}
+    june_moved = {_WEEKEND[day] for day in rule.get("june_weekend_days_moved", rule["weekend_days_moved"])}
 
     def due(obligation: date) -> date:
         month = pd.Period(obligation, freq="M")
@@ -52,7 +54,7 @@ def payroll_tax_due_rule(jurisdiction: str) -> DueRule:
         field = {6: "june_day", 12: "december_day"}.get(month.month, "monthly_day")
         following = month + 1
         result = date(following.year, following.month, rule.get(field, rule["monthly_day"]))
-        while result.weekday() in moved:
+        while result.weekday() in (june_moved if month.month == 6 else moved):
             result += timedelta(days=1)
         return result
 

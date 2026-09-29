@@ -71,9 +71,19 @@ def test_public_holidays_are_not_modelled():
 
 
 def test_a_dated_rule_covers_only_its_own_month():
-    # RevenueSA's 14 January applies to December 2026 alone; the data holds no
-    # published date for December 2025, so the standing 7th applies.
-    assert payroll_tax_due_rule("SA")(date(2025, 12, 31)) == date(2026, 1, 7)
+    # The dated 14 January 2027 leaves the months around December 2026 on the
+    # standing rule, as RevenueSA's table has them: 7 December and 8 February.
+    rule = payroll_tax_due_rule("SA")
+    assert rule(date(2026, 11, 30)) == date(2026, 12, 7)
+    assert rule(date(2027, 1, 31)) == date(2027, 2, 8)
+
+
+def test_tasmania_moves_its_annual_return_from_either_weekend_day(monkeypatch):
+    # 21 July 2029 is a Saturday. The monthly Saturday rule would leave it, but
+    # SRO Tasmania's guide moves the annual return to the next working day. The
+    # year is past the reviewed horizon, so the horizon check is set aside here.
+    monkeypatch.setattr("pyfpa.au.payroll_tax.require_payroll_tax_dates_reviewed", lambda month_end: None)
+    assert payroll_tax_due_rule("TAS")(date(2029, 6, 30)) == date(2029, 7, 23)
 
 
 def test_every_jurisdiction_has_a_rule():

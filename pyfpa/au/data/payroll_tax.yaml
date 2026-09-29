@@ -159,6 +159,9 @@ due_dates:
     monthly_day: 7
     june_day: 21
     weekend_days_moved: [Sunday]
+    # SRO Tasmania's Employers guide to payroll tax 2025-26: the annual
+    # adjustment return is due 21 July or the first working day after a weekend.
+    june_weekend_days_moved: [Saturday, Sunday]
     source_url: https://www.sro.tas.gov.au/payroll-tax/lodge-your-return
     weekend_source_url: https://classic.austlii.edu.au/au/legis/tas/consol_act/aia1931230/s29.html
   ACT:
