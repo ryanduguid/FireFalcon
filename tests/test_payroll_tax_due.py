@@ -5,7 +5,10 @@ September 2026); SRO Victoria monthly returns and annual reconciliation; the
 Queensland Revenue Office due dates (last updated 5 August 2026); RevenueWA
 payments; RevenueSA monthly returns and annual reconciliation; SRO Tasmania
 returns; ACT Revenue Office lodging returns; and the NT Territory Revenue
-Office payroll tax page. The URLs are in pyfpa/au/data/payroll_tax.yaml.
+Office payroll tax page. Weekend moves follow those pages, WA's Interpretation
+Act 1984 s 61 (Saturday and Sunday are excluded days) and Tasmania's Acts
+Interpretation Act 1931 s 29(3) (Sunday, not Saturday). The URLs are in
+pyfpa/au/data/payroll_tax.yaml.
 """
 
 from datetime import date
@@ -33,12 +36,17 @@ from pyfpa.au.rates import JURISDICTIONS, load_payroll_tax_data
         ("QLD", "2026-12", date(2027, 1, 14)),
         ("QLD", "2027-05", date(2027, 6, 7)),
         ("QLD", "2027-06", date(2027, 7, 21)),
-        # RevenueWA states no weekend rule, so Sunday 7 March stays.
-        ("WA", "2027-02", date(2027, 3, 7)),
+        # WA's Interpretation Act s 61 moves Sunday 7 March 2027.
+        ("WA", "2027-02", date(2027, 3, 8)),
         ("WA", "2027-06", date(2027, 7, 21)),
         ("SA", "2026-06", date(2026, 7, 28)),
         ("SA", "2027-01", date(2027, 2, 8)),
+        # RevenueSA's published date for December 2026.
+        ("SA", "2026-12", date(2027, 1, 14)),
         ("TAS", "2026-09", date(2026, 10, 7)),
+        # Tasmania moves Sunday 7 March 2027 but not Saturday 7 November 2026.
+        ("TAS", "2027-02", date(2027, 3, 8)),
+        ("TAS", "2026-10", date(2026, 11, 7)),
         ("TAS", "2027-06", date(2027, 7, 21)),
         ("ACT", "2026-10", date(2026, 11, 9)),
         ("ACT", "2026-12", date(2027, 1, 14)),
@@ -60,6 +68,12 @@ def test_public_holidays_are_not_modelled():
     # Revenue NSW publishes 9 June 2026 for May: 7 June is a Sunday and
     # Monday 8 June is the King's Birthday. The rule moves weekends only.
     assert payroll_tax_due_rule("NSW")(date(2026, 5, 31)) == date(2026, 6, 8)
+
+
+def test_a_dated_rule_covers_only_its_own_month():
+    # RevenueSA's 14 January applies to December 2026 alone; the data holds no
+    # published date for December 2025, so the standing 7th applies.
+    assert payroll_tax_due_rule("SA")(date(2025, 12, 31)) == date(2026, 1, 7)
 
 
 def test_every_jurisdiction_has_a_rule():
