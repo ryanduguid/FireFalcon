@@ -237,6 +237,12 @@ def load_evidence(path: str | Path) -> DepreciationEvidence:
     findings = _strings(
         validation.get("findings"), "calculation.validation.findings", source,
     )
+    synthetic_input = calculation.get("synthetic_input", False)
+    if type(synthetic_input) is not bool:
+        raise DepreciationEvidenceError(
+            f"{source}: calculation.synthetic_input is "
+            f"{type(synthetic_input).__name__}, not a boolean."
+        )
     return DepreciationEvidence(
         label=str(calculation.get("label") or source.stem),
         calculator=str(call.get("calculator") or ""),
@@ -249,7 +255,7 @@ def load_evidence(path: str | Path) -> DepreciationEvidence:
         advisory_notes=notes,
         source_path=source,
         calculation_sha256=actual,
-        synthetic_input=bool(calculation.get("synthetic_input")),
+        synthetic_input=synthetic_input,
         accepted=accepted,
         findings=findings,
     )
