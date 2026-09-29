@@ -43,10 +43,21 @@ def divest(
 
     Assumptions (documented):
     - Working-capital impact of the carve-out is held constant.
+    - Bad debts, where the forecast carries them, stay at the source amounts,
+      like the receivables behind them, and still come off EBITDA.
     - One-time proceeds are excluded from FCF (FCF is operating only).
     - Opening balances (debt principal) unchanged.
     - ``ending_cash`` is rebuilt from cumulative ``change_in_cash``.
+
+    Tax is recomputed month by month at ``tax_rate``, so a forecast carrying an
+    income-year tax provision (``tax_paid``, from ``income_tax``) is refused:
+    its provision and payment schedule would not survive the recalculation.
     """
+    if "tax_paid" in forecast.columns:
+        raise ValueError(
+            "divest recomputes tax month by month and cannot follow an income-year tax "
+            "provision (income_tax); run the divestiture on a forecast without income_tax"
+        )
     out = forecast.copy(deep=True)
     n = len(out.index)
     if not 0 <= sale_month <= n:
@@ -67,7 +78,8 @@ def divest(
         opex = row["opex"] - carve_out.opex
         da = row["da"] - carve_out.da
         capex = row["capex"] - carve_out.capex
-        ebitda = gross_profit - opex
+        bad_debts = row["bad_debts"] if "bad_debts" in out.columns else 0.0
+        ebitda = gross_profit - opex - bad_debts
         interest = max(0.0, row["interest"] - monthly_interest_saved)
         pretax = ebitda - da - interest   # EBIT (= EBITDA - D&A) less interest
         tax = max(0.0, pretax) * tax_rate
