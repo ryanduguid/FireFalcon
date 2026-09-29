@@ -2,6 +2,8 @@ import pandas as pd
 import pytest
 
 from pyfpa.config.schemas import EntityConfig, OpeningBalances, WorkingCapitalConfig
+from pyfpa.excel.model_workbook import model_to_excel
+from pyfpa.models.cashflow import cashflow_from_config
 from pyfpa.models.cogs import cogs_from_config
 from pyfpa.models.revenue import revenue_from_config
 from pyfpa.models.working_capital import working_capital_from_config
@@ -52,6 +54,18 @@ def test_a_revenue_jump_that_implies_negative_customer_receipts_is_refused(sampl
     revenue, cogs = _frames([100, 300], [0, 0])
     with pytest.raises(ValueError, match=r"negative customer receipts of -100\.00 in 2026-08"):
         working_capital_from_config(_config(sample_config, dso=60, ar=200), revenue, cogs)
+
+
+def test_the_excel_export_refuses_what_the_engine_refuses(sample_config, tmp_path):
+    # DSO 60 from a nil opening balance puts January AR at 200, so January's
+    # receipts are 100 - 200 = -100. The workbook must not be written.
+    cfg = _config(sample_config, dso=60)
+    path = tmp_path / "model.xlsx"
+    with pytest.raises(ValueError, match="negative customer receipts"):
+        cashflow_from_config(cfg)
+    with pytest.raises(ValueError, match="negative customer receipts"):
+        model_to_excel(cfg, path)
+    assert not path.exists()
 
 
 def test_a_cost_fall_that_implies_negative_purchases_is_refused(sample_config):
