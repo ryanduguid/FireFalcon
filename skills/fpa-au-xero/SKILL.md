@@ -69,9 +69,10 @@ the operating loop.
   terms, raw or processed, and may not train, fine-tune, adapt or enhance
   AI models, predictive analytics tools included. Before
   `fpa-backtest-learn`, `fpa-research-loop` or `fpa-portfolio-learn` uses
-  an `api` Xero source, get the owner's confirmation that the terms permit
-  it and record it under `.fpa/decisions/`, as the recipe's Connector
-  section sets out.
+  an `api` Xero source, have the owner confirm and record under
+  `.fpa/decisions/` that the current terms and the app's approved use case
+  have been checked, including the AI-model restriction, as the recipe's
+  Connector section sets out.
 
 ## Verification
 

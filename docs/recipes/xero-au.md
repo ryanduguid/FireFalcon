@@ -205,16 +205,18 @@ by hand as `accounting_system`, so every source records whether it came
 through the Xero API. Xero's
 [Developer Platform terms](https://developer.xero.com/xero-developer-platform-terms-conditions)
 (last updated 4 December 2025, applying from 2 March 2026 to developers
-registered earlier) treat data obtained through the API, raw or processed, as
-API data. They limit it to the app's approved use case and bar using it to
-train, fine-tune, adapt or enhance AI models, which they define to include
-predictive analytics tools. `fpa-backtest-learn`, `fpa-research-loop` and
-`fpa-portfolio-learn` change models, priors or skills from actuals, so before
-they use an `api` Xero source the company owner confirms that the terms permit
-it, and the decision is recorded under `.fpa/decisions/`. Portfolio learning
-across clients also needs a check against the terms' restrictions on
-aggregating user data or API data. This recipe does not decide whether a
-particular workflow falls within the terms.
+registered before 4 December 2025) treat data obtained through the API, raw or
+processed, as API data. They limit it to the app's approved use case and bar
+using it to train, fine-tune, adapt or enhance AI models, which they define to
+include predictive analytics tools. `fpa-backtest-learn`, `fpa-research-loop`
+and `fpa-portfolio-learn` change models, priors or skills from actuals, so
+before they use an `api` Xero source the company owner confirms and records
+under `.fpa/decisions/` that the current terms and the app's approved use case
+have been checked, including the AI-model restriction. Portfolio learning
+across clients also needs a check against the terms' restriction on
+aggregating and supplying user data or API data to another app or third party.
+This recipe does not decide whether a particular workflow falls within the
+terms.
 
 ## Australian specifics to check every time
 
