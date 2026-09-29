@@ -13,8 +13,8 @@ without input tax credits.
 
 A due date on a weekend moves to the following Monday. Taxation Administration
 Act 1953 s 8AAZMB also moves a date that falls on a public holiday for the
-whole of any State or Territory, but this module carries no holiday calendar,
-so such a date is left as is. For example, 28 February 2027 is a Sunday; the
+whole of any State, the Australian Capital Territory or the Northern Territory,
+but this module carries no holiday calendar, so such a date is left as is. For example, 28 February 2027 is a Sunday; the
 Monday it moves to, 1 March, is Labour Day throughout Western Australia, so the
 statutory date is Tuesday 2 March 2027, one day later than this module gives.
 """
@@ -103,9 +103,9 @@ def _next_business_day(due: date) -> date:
 
     Taxation Administration Act 1953 s 8AAZMB makes a tax debt due on the next
     business day when its day is a weekend or a public holiday for the whole of
-    any State or Territory, and these dates drive cash timing. Public holidays
-    are not modelled: this module carries no holiday calendar, so a due date on
-    one is left as is.
+    any State, the Australian Capital Territory or the Northern Territory, and
+    these dates drive cash timing. Public holidays are not modelled: this
+    module carries no holiday calendar, so a due date on one is left as is.
     """
     shift = {5: 2, 6: 1}.get(due.weekday(), 0)
     return due + timedelta(days=shift)
