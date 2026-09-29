@@ -89,6 +89,15 @@ dated 1 January 2026](https://www.legislation.gov.au/C2004A00446/2026-01-01/2026
 ss 9-70, 11-5, 11-15, 11-25 and 11-30. Financial-supply exceptions and reduced
 credits require separate assessment; the zero-credit example does not decide them.
 
+On the cash basis, GST follows payment. GST on a sale belongs to the period in
+which payment is received, and a GST credit to the period in which payment is
+made, each only for the part paid. A business with aggregated turnover under
+$10 million, among others, can choose this method. Pass the month's receipts and
+payments for creditable purchases, excluding GST, to `monthly_gst` in place of
+revenue and purchases; with `working_capital_from_config`, receipts are revenue
+less `d_ar`. Source: ATO, [Choosing an accounting method for GST](https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/accounting-for-gst-in-your-business/choosing-an-accounting-method)
+(last updated 14 September 2026).
+
 `monthly_gst` applies supplied proportions; it does not classify transactions or
 attribute invoices and payments to tax periods. Reconcile cash-basis inputs before
 using them. The schedule uses original BAS due dates, without weekend, holiday or
