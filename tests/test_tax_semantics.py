@@ -11,6 +11,7 @@ then follows the stated tax payments, never the provision.
 import pandas as pd
 import pytest
 
+from pyfpa.analysis.divestiture import Carveout, divest
 from pyfpa.analysis.forecast_review import review_forecast
 from pyfpa.config.schemas import (
     Channel,
@@ -103,6 +104,21 @@ def test_an_unknown_forecast_loss_is_refused_once_it_would_reduce_tax():
     assert _provision([-200.0] * 12 + [-50.0], deductible=None)[12] == 0.0
     with pytest.raises(ValueError, match=r"forecast tax loss of 2,400\.00 would reduce tax .* 2026-07"):
         _provision([-200.0] * 12 + [200.0], deductible=None)
+
+
+def test_an_unknown_forecast_loss_is_not_refused_at_a_nil_rate():
+    # At a 0% rate the loss can reduce no tax, so whether it is deductible cannot matter.
+    pretax = pd.Series([-200.0] * 12 + [200.0], index=pd.period_range("2025-07", periods=13, freq="M"))
+    assert _income_year_tax(pretax, 0.0, 0.0, None).tolist() == [0.0] * 13
+
+
+def test_a_divestiture_refuses_an_income_year_provision():
+    # divest() recomputes tax month by month and has no payment schedule, so it
+    # cannot keep an income-year forecast's tax or cash on the same rules.
+    df = cashflow_from_config(_config(PROFIT_FIRST, income_tax=IncomeTaxConfig()))
+    carve_out = Carveout(revenue=10.0, gross_profit=10.0, opex=0.0)
+    with pytest.raises(ValueError, match="income-year tax provision"):
+        divest(df, carve_out, sale_month=3, proceeds=0.0, annual_rate=0.0, tax_rate=RATE)
 
 
 def test_the_provision_is_not_cash_and_the_payments_are():

@@ -130,6 +130,39 @@ def test_a_value_that_is_not_a_number_is_reported_not_raised(sample_config, fore
     assert ("FR-IDENTITY-NET-INCOME", Status.NOT_RUN, "2026-08") in codes(review)
 
 
+def test_an_integer_too_large_for_a_float_is_reported_not_raised(sample_config, forecast):
+    changed = forecast.astype(object)
+    changed.loc[changed.index[7], "tax"] = 10**400
+    review = review_forecast(changed, sample_config)
+    assert ("FR-NON-FINITE", Status.FAIL, "2026-08") in codes(review)
+    assert ("FR-IDENTITY-NET-INCOME", Status.NOT_RUN, "2026-08") in codes(review)
+
+
+def test_arithmetic_that_overflows_is_not_run_rather_than_failed(sample_config, forecast):
+    changed = forecast.copy()
+    # pretax_income = ebitda - da - interest holds in exact arithmetic, but
+    # 1e308 - (-1e308) overflows a float before interest is taken off.
+    changed.loc[changed.index[2], ["ebitda", "da", "interest", "pretax_income"]] = [1e308, -1e308, 1e308, 1e308]
+    # The cash roll-forward: March opens at 1e308 and its change adds 1e308 more.
+    changed.loc[changed.index[1:3], "ending_cash"] = 1e308
+    changed.loc[changed.index[2], "change_in_cash"] = 1e308
+    review = review_forecast(changed, sample_config)
+    assert ("FR-IDENTITY-PRETAX-INCOME", Status.NOT_RUN, "2026-03") in codes(review)
+    assert ("FR-IDENTITY-PRETAX-INCOME", Status.FAIL, "2026-03") not in codes(review)
+    assert ("FR-CASH-ROLLFORWARD", Status.NOT_RUN, "2026-03") in codes(review)
+
+
+@pytest.mark.parametrize("column", ["ending_cash", "revenue"])
+def test_a_duplicate_column_fails_and_the_checks_that_read_it_are_not_run(sample_config, forecast, column):
+    # Two identical copies: nothing else is wrong, so only the duplicate can fail.
+    changed = pd.concat([forecast, forecast[[column]]], axis=1)
+    review = review_forecast(changed, sample_config)
+    assert review.failed
+    assert ("FR-DUPLICATE-COLUMN", Status.FAIL, None) in codes(review)
+    blocked = "FR-CASH-ROLLFORWARD" if column == "ending_cash" else "FR-IDENTITY-GROSS-PROFIT"
+    assert (blocked, Status.NOT_RUN, None) in codes(review)
+
+
 def test_a_non_finite_closing_cash_leaves_its_month_and_the_next_not_run(sample_config, forecast):
     changed = forecast.copy()
     changed.loc[changed.index[4], "ending_cash"] = math.nan

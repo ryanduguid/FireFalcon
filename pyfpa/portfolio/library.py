@@ -210,10 +210,14 @@ def seed_from_library(
             "library": str(library), "driver": prior["driver"], "value": prior["value"],
             "candidate_digest": prior["candidate_digest"], "seeded_at": seeded_at,
         })
+    # Validated before anything is recorded: a prior the config cannot take, such
+    # as a dso_days prior for a config that collects by collection_profile, is
+    # refused with no seed written on either side.
+    seeded = EntityConfig.model_validate(data)
     if seeds:
         workspace = _write_workspace_seeds(company_root, seeds)
         _write_library_seeds(library, workspace, seeds, seeded_at)
-    return EntityConfig.model_validate(data)
+    return seeded
 
 
 def _seeding_refusal(
