@@ -93,6 +93,10 @@ def _finite(value: object) -> bool:
         return False
 
 
+def _python_number(value: object) -> object:
+    return value.item() if isinstance(value, np.generic) else value
+
+
 def _finite_float(value: float) -> float | None:
     """The result of a check's arithmetic as a float, or None when it overflows."""
     try:
@@ -147,9 +151,10 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
                                         f"{column} cannot be checked in {period}; not a finite number: "
                                         + ", ".join(unusable)))
                 continue
-            with np.errstate(over="ignore", invalid="ignore"):  # an overflow is reported below
-                raw = expected_of(row)
-            observed, expected = float(row[column]), _finite_float(raw)
+            # On Python numbers, integer arithmetic is exact instead of wrapping at
+            # 64 bits, and float overflow gives inf, which is reported below.
+            operands = pd.Series({name: _python_number(row[name]) for name in (column, *inputs)}, dtype=object)
+            observed, expected = float(row[column]), _finite_float(expected_of(operands))
             if expected is None:
                 findings.append(Finding(_code(column), Status.NOT_RUN, str(period), None, None,
                                         f"{column} cannot be checked in {period}; its inputs' arithmetic overflows"))
