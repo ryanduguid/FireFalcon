@@ -97,7 +97,9 @@ its payments for all purchases, both excluding GST, to `monthly_gst` in place of
 revenue and purchases: `taxable_sales_pct` and `creditable_purchases_pct` then
 apply to them as they do to invoiced amounts, so do not filter the payments to
 creditable purchases first. With `working_capital_from_config`, receipts are
-revenue less `d_ar`. Source: ATO, [Choosing an accounting method for GST](https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/accounting-for-gst-in-your-business/choosing-an-accounting-method)
+revenue less `d_ar`; with `bad_debt_share` set, use the frame's `receipts`
+column instead, because `d_ar` then also falls by the bad debts, which are
+never received. Source: ATO, [Choosing an accounting method for GST](https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/accounting-for-gst-in-your-business/choosing-an-accounting-method)
 (last updated 14 September 2026).
 
 `monthly_gst` applies supplied proportions; it does not classify transactions or
