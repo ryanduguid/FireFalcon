@@ -41,15 +41,19 @@ class SettlementEvent:
     cash_date: date
     amount: float
 
+    def __post_init__(self) -> None:
+        if self.component not in COMPONENTS:
+            raise ValueError(f"unknown component {self.component!r}")
+        if self.due_date < self.obligation_date:
+            raise ValueError(f"{self.component} for {self.source_period} falls due before it arises")
+        if self.cash_date < self.obligation_date:
+            raise ValueError(f"{self.component} for {self.source_period} would be paid before it arises")
+
 
 def _event(component: str, period: pd.Period, obligation: date, amount: float,
            due_rules: Mapping[str, DueRule], early: Mapping[str, int]) -> SettlementEvent:
     due = obligation if component == "net_wages" else due_rules[component](obligation)
-    if due < obligation:
-        raise ValueError(f"the {component} rule makes {period}'s amount due before it arises")
     cash = due - timedelta(days=early.get(component, 0))
-    if cash < obligation:
-        raise ValueError(f"{component} for {period} would be paid before it arises")
     return SettlementEvent(component, period, obligation, due, cash, amount)
 
 
@@ -70,9 +74,13 @@ def settlement_events(
     rate = payg_withholding_rate_assumption
     if not 0 <= rate < 1:
         raise ValueError("payg_withholding_rate_assumption must be at least 0 and below 1")
-    unknown = sorted(set(due_rules) - set(COMPONENTS))
-    if unknown:
-        raise ValueError("due_rules names an unknown component: " + ", ".join(unknown))
+    early = pay_days_before_due or {}
+    for name, mapping in (("due_rules", due_rules), ("pay_days_before_due", early)):
+        unknown = sorted(set(mapping) - set(COMPONENTS))
+        if unknown:
+            raise ValueError(f"{name} names an unknown component: " + ", ".join(unknown))
+    if any(isinstance(days, bool) or not isinstance(days, int) or days < 0 for days in early.values()):
+        raise ValueError("pay_days_before_due must be whole days, 0 or more")
     if len(set(paydays)) != len(paydays):
         raise ValueError("paydays are repeated")
     months = payroll.index
@@ -83,7 +91,6 @@ def settlement_events(
             raise ValueError(f"payday {day.isoformat()} falls outside the payroll months")
         by_month[period].append(day)
 
-    early = pay_days_before_due or {}
     events: list[SettlementEvent] = []
     for period, row in payroll.iterrows():
         gross = float(row["gross_wages"] + row["bonuses"])
@@ -116,9 +123,14 @@ def monthly_settlement(events: Sequence[SettlementEvent], months: pd.PeriodIndex
     """Obligations, cash and closing liability by component and month.
 
     An obligation before the first month opens the liability; cash dated after
-    the last month leaves the amount in closing liability.
+    the last month leaves the amount in closing liability. `months` must run
+    consecutively: a skipped month would drop its obligations from the roll-forward.
     """
-    columns = [f"{c}_{kind}" for c in COMPONENTS for kind in ("obligations", "cash", "closing")]
+    if not isinstance(months, pd.PeriodIndex) or months.freqstr != "M" or not (
+            len(months) and months.is_unique and months.is_monotonic_increasing
+            and len(months) == months[-1].ordinal - months[0].ordinal + 1):
+        raise ValueError("months must be a monthly PeriodIndex running consecutively, without gaps or repeats")
+    columns =[f"{c}_{kind}" for c in COMPONENTS for kind in ("obligations", "cash", "closing")]
     table = pd.DataFrame(0.0, index=months, columns=[*columns, "total_cash"])
     first = months[0]
     for component in COMPONENTS:
