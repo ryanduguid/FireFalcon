@@ -361,6 +361,10 @@ def _build_nol_block(
     cfg: EntityConfig, n: int, r_pretax: int, alloc: _RowAlloc,
 ) -> tuple[int, int, int]:
     """NOL opening/used/closing rows that cross-reference each other."""
+    if cfg.income_tax is not None:
+        # These rows are the monthly approximation. Raising here, before the
+        # workbook is saved, keeps the export from disagreeing with the engine.
+        raise ValueError("the Excel export does not support income_tax: its tax rows use the monthly approximation")
     # Allocate all 3 rows first, then fill
     nol_open_row = alloc.alloc()
     nol_used_row = alloc.alloc()

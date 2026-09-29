@@ -32,6 +32,13 @@ _IDENTITIES: tuple[tuple[str, tuple[str, ...], Callable[[pd.Series], float]], ..
     ("change_in_cash", ("free_cash_flow", "principal"), lambda r: r["free_cash_flow"] - r["principal"]),
 )
 _ROLL_FORWARD = ("ending_cash", "change_in_cash")
+# With an income-year provision (cfg.income_tax) the frame must carry tax_paid: the
+# provision is added back and the tax actually paid is deducted. The config, not the
+# frame's columns, decides, so a dropped tax_paid is a missing column, not a pass.
+_OPERATING_CASH_FLOW_WITH_TAX_PAID = (
+    "operating_cash_flow", ("net_income", "da", "wc_cash_impact", "tax", "tax_paid"),
+    lambda r: r["net_income"] + r["da"] + r["wc_cash_impact"] + r["tax"] - r["tax_paid"],
+)
 
 
 class Status(str, Enum):
@@ -106,7 +113,11 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
     if index_problems:
         findings.append(Finding("FR-INDEX", Status.FAIL, None, None, None, "; ".join(index_problems)))
 
-    needed = sorted({c for column, inputs, _ in _IDENTITIES for c in (column, *inputs)} | set(_ROLL_FORWARD))
+    identities = _IDENTITIES
+    if cfg.income_tax is not None:
+        identities = tuple(_OPERATING_CASH_FLOW_WITH_TAX_PAID if item[0] == "operating_cash_flow" else item
+                           for item in _IDENTITIES)
+    needed = sorted({c for column, inputs, _ in identities for c in (column, *inputs)} | set(_ROLL_FORWARD))
     missing = [column for column in needed if column not in forecast.columns]
     if missing:
         findings.append(Finding("FR-MISSING-COLUMN", Status.FAIL, None, None, None,
@@ -126,7 +137,7 @@ def review_forecast(forecast: pd.DataFrame, cfg: EntityConfig) -> ForecastReview
                 findings.append(Finding("FR-NON-FINITE", Status.FAIL, str(period), None, None,
                                         f"{column} is not a finite number in {period}"))
 
-    for column, inputs, expected_of in _IDENTITIES:
+    for column, inputs, expected_of in identities:
         if unusable_columns & {column, *inputs}:
             findings.append(Finding(_code(column), Status.NOT_RUN, None, None, None,
                                     f"{column} cannot be checked without one column each for "
