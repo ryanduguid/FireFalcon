@@ -23,7 +23,7 @@ Map the real numbers onto the existing engine structure.
    - revenue accounts → `channels[]` (one `Channel` per channel/segment, with `annual_revenue`, a 12-month `seasonality` weight list, `growth_rate`, `cogs_pct`)
    - cost accounts → `opex[]` as `OpexLine(kind="fixed", monthly_amount=…)` or `kind="variable", pct_of_revenue=…`
    - debt → `debt[]` (`term_loan` with `monthly_principal`, or interest-only `loc`)
-   - balance-sheet rhythm → `working_capital(dso_days, dpo_days, dio_days)` and `opening_balances`
+   - balance-sheet rhythm → `working_capital(dso_days, dpo_days, dio_days)` and `opening_balances`. When customers pay on a known pattern that days of revenue cannot follow, give `collection_profile` (shares of each month's revenue received that month and after, adding up to 1) instead of `dso_days`, plus `opening_ar_collection_profile` for opening receivables. The Excel export refuses a collection profile.
    - income tax → `tax_rate`, which is required: 25% for a base rate entity, otherwise 30%. Ask; do not assume either.
 3. **Write** the company model and config under `models/generated/`. Validate
    config with `pyfpa.load_config(path)`, which raises on a missing required
