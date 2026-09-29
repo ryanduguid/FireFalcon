@@ -95,7 +95,10 @@ def _require_shares_add_to(shares: list[float] | None, total: float, name: str, 
     keeps bad_debt_share's rounding at full size, so a tiny total needs that much
     room, one unit in the last place of bad_debt_share, and no more.
     """
-    added = math.fsum(shares) if shares is not None else total
+    try:
+        added = math.fsum(shares) if shares is not None else total
+    except OverflowError as exc:  # fsum raises where sum would give inf
+        raise ValueError(f"{name} shares exceed the supported numeric range") from exc
     if not math.isclose(added, total, rel_tol=_SHARE_TOLERANCE, abs_tol=slack):
         raise ValueError(f"{name} shares must add up to {total:.12g}, not {added:.12g}")
 
