@@ -82,13 +82,15 @@ class DebtInstrument(_ConfigModel):
         return name
 
 
+# Relative to the total the shares must reach, so a tiny collectible share left
+# by a large bad-debt share cannot be rounded away. The total is always above 0.
 _SHARE_TOLERANCE = 1e-9
 _Share = Annotated[float, Field(ge=0)]
 
 
 def _require_shares_add_to(shares: list[float] | None, total: float, name: str) -> None:
-    if shares is not None and abs(sum(shares) - total) > _SHARE_TOLERANCE:
-        raise ValueError(f"{name} shares must add up to {total:g}, not {sum(shares):g}")
+    if shares is not None and not math.isclose(sum(shares), total, rel_tol=_SHARE_TOLERANCE, abs_tol=0.0):
+        raise ValueError(f"{name} shares must add up to {total:.12g}, not {sum(shares):.12g}")
 
 
 class WorkingCapitalConfig(_ConfigModel):
