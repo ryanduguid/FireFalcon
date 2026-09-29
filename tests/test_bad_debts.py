@@ -144,6 +144,9 @@ def test_a_divestiture_keeps_the_bad_debts_in_ebitda():
          "collection_profile shares must add up to"),
         ({"collection_profile": [1e-9], "bad_debt_share": 0.9999999995, "write_off_after_months": 0},
          "collection_profile shares must add up to"),
+        # math.fsum raises OverflowError here; the schema must still refuse it as invalid.
+        ({"collection_profile": [1e308, 1e308], "bad_debt_share": 0.05, "write_off_after_months": 0},
+         "exceed the supported numeric range"),
     ],
 )
 def test_bad_debts_refuse_what_they_cannot_place(working_capital, message):
