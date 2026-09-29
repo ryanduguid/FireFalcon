@@ -11,9 +11,12 @@ health) and input-taxed (financial supplies, residential rent) revenue
 by exclusion; likewise `creditable_purchases_pct` for acquisitions
 without input tax credits.
 
-A due date on a weekend moves to the following Monday, which is the ATO's
-next-business-day concession. Public holidays are not modelled: they differ
-by state and this module carries no holiday calendar.
+A due date on a weekend moves to the following Monday. Taxation Administration
+Act 1953 s 8AAZMB also moves a date that falls on a public holiday for the
+whole of any State, the Australian Capital Territory or the Northern Territory,
+but this module carries no holiday calendar, so such a date is left as is. For example, 28 February 2027 is a Sunday; the
+Monday it moves to, 1 March, is Labour Day throughout Western Australia, so the
+statutory date is Tuesday 2 March 2027, one day later than this module gives.
 """
 
 from __future__ import annotations
@@ -27,7 +30,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 
 from pyfpa.au.calendar import require_iso
-from pyfpa.au.rates import load_gst_bas_data
+from pyfpa.au.rates import load_gst_bas_data, require_bas_dates_reviewed
 from pyfpa.cash13.schemas import WeeklyFlow
 
 
@@ -98,17 +101,19 @@ def monthly_gst(
 def _next_business_day(due: date) -> date:
     """Move a weekend due date to the following Monday.
 
-    The ATO allows lodgment and payment on the next business day when a due
-    date falls on a weekend or public holiday, and these dates drive cash
-    timing. Public holidays are not modelled: they differ by state and this
+    Taxation Administration Act 1953 s 8AAZMB makes a tax debt due on the next
+    business day when its day is a weekend or a public holiday for the whole of
+    any State, the Australian Capital Territory or the Northern Territory, and
+    these dates drive cash timing. Public holidays are not modelled: this
     module carries no holiday calendar, so a due date on one is left as is.
     """
     shift = {5: 2, 6: 1}.get(due.weekday(), 0)
     return due + timedelta(days=shift)
 
 
-def _quarter_due_date(quarter_end: pd.Period) -> date:
-    """Due date for the quarterly BAS ending at `quarter_end`."""
+def quarterly_bas_due_date(quarter_end: pd.Period) -> date:
+    """Due date for the quarterly BAS whose quarter ends with month `quarter_end`."""
+    require_bas_dates_reviewed(quarter_end.end_time.date())
     rules = load_gst_bas_data()["quarterly_due"]
     key = f"{quarter_end.month:02d}"
     rule = rules[key]  # {'month': int, 'day': int} relative to quarter end
@@ -116,8 +121,14 @@ def _quarter_due_date(quarter_end: pd.Period) -> date:
     return _next_business_day(date(due_year, rule["month"], rule["day"]))
 
 
-def _month_due_date(month: pd.Period) -> date:
-    """Due date for the monthly BAS for `month` (21st following)."""
+def monthly_activity_statement_due_date(month: pd.Period) -> date:
+    """Standard due date for the monthly activity statement for `month`: the 21st following.
+
+    The ATO's 21 February date for an eligible business's December statement
+    (monthly GST, turnover up to $10 million, lodged electronically) is not
+    modelled, so December gives 21 January.
+    """
+    require_bas_dates_reviewed(month.end_time.date())
     day = int(load_gst_bas_data()["monthly_due_day"])
     following = month + 1
     return _next_business_day(date(following.year, following.month, day))
@@ -145,7 +156,7 @@ def bas_schedule(
             rows.append(
                 {
                     "period_label": str(period),
-                    "due_date": _month_due_date(period),
+                    "due_date": monthly_activity_statement_due_date(period),
                     "amount": float(amount),
                 }
             )
@@ -159,7 +170,7 @@ def bas_schedule(
             rows.append(
                 {
                     "period_label": str(quarter),
-                    "due_date": _quarter_due_date(quarter_end),
+                    "due_date": quarterly_bas_due_date(quarter_end),
                     "amount": float(amounts.sum()),
                 }
             )

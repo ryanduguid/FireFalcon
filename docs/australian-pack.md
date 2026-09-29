@@ -13,6 +13,8 @@ data-access-recipe and industry-pack paths in CONTRIBUTING:
   liabilities and 13-week flows derived from them; net wages fall due on each
   payday and the caller passes the due-date rule for every other cost
   (`pyfpa.au.payroll_settlement`)
+  - PAYG withholding due dates under Taxation Administration Act 1953,
+    Schedule 1, section 16-75 (`pyfpa.au.paygw`)
 - **GST/BAS** - net GST from GST-exclusive series, monthly and
   quarterly settlement schedules, straight into the 13-week model
   (`pyfpa.au.gst`)
@@ -109,9 +111,16 @@ never received. Source: ATO, [Choosing an accounting method for GST](https://www
 
 `monthly_gst` applies supplied proportions; it does not classify transactions or
 attribute invoices and payments to tax periods. Reconcile cash-basis inputs before
-using them. The schedule uses original BAS due dates, without weekend, holiday or
-agent extensions; a refund on that date is a forecast assumption, not a receipt
-promise. Explicit rate overrides must be finite and non-negative. Zero remains
+using them. The schedule uses original BAS due dates, moved from a weekend to the
+Monday but not past a public holiday or for agent extensions. Under Taxation
+Administration Act 1953 s 8AAZMB a public holiday for the whole of any State,
+the Australian Capital Territory or the Northern Territory is not a business day
+either: 28 February 2027 falls on a Sunday and Monday 1 March is Labour Day
+throughout Western Australia, so that payment is due on Tuesday 2 March, a day
+after the date the schedule gives. A refund on the due date is a forecast
+assumption, not a receipt promise. A period ending after
+`reviewed_until` in `gst_bas.yaml` (30 June 2027) raises until the dates are
+re-checked. Explicit rate overrides must be finite and non-negative. Zero remains
 available for scenario modelling; it does not establish a GST exemption.
 
 Worked examples on this fork:

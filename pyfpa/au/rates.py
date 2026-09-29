@@ -106,7 +106,15 @@ def load_payroll_tax_table() -> Schedule[PayrollTaxEntry]:
 
 
 def _within_review(entries: list[Any], when_date: date) -> None:
-    reviewed_until = getattr(entries, "reviewed_until", None)
+    _require_reviewed(getattr(entries, "reviewed_until", None), when_date)
+
+
+def require_bas_dates_reviewed(period_end: date) -> None:
+    """Raise when a BAS due date is sought for a period ending after gst_bas.yaml's reviewed_until."""
+    _require_reviewed(_reviewed_until(load_gst_bas_data(), "gst_bas.yaml"), period_end)
+
+
+def _require_reviewed(reviewed_until: date | None, when_date: date) -> None:
     if reviewed_until is not None and when_date > reviewed_until:
         raise ValueError(
             f"the schedule was verified only to {reviewed_until.isoformat()}; re-verify it "
