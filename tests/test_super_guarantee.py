@@ -97,6 +97,12 @@ def test_a_due_date_past_the_calendar_coverage_is_refused():
         rule(date(2026, 7, 1))
 
 
+def test_both_horizons_include_their_last_day():
+    # A due date on the calendar's last covered day, and a payday on reviewed_until.
+    assert super_due_rule(_Calendar(coverage_until=date(2026, 7, 10)))(date(2026, 7, 1)) == date(2026, 7, 10)
+    assert super_due_rule(_Calendar())(date(2027, 6, 30)) == date(2027, 7, 9)
+
+
 def test_a_payday_after_the_reviewed_horizon_is_refused():
     with pytest.raises(ValueError, match="verified only to 2027-06-30"):
         super_due_rule(_Calendar())(date(2027, 7, 2))
