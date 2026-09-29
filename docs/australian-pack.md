@@ -17,6 +17,9 @@ data-access-recipe and industry-pack paths in CONTRIBUTING:
 - **GST/BAS** - net GST from GST-exclusive series, monthly and
   quarterly settlement schedules, straight into the 13-week model
   (`pyfpa.au.gst`)
+- **PAYG instalments** - quarterly payers' instalments by instalment rate or
+  notified amount, due on the activity statement dates
+  (`pyfpa.au.payg_instalments`)
 - **Xero** - report parser with tracking-category and GST-basis
   detection plus the full register/map/reconcile recipe
   (`pyfpa.io.xero_au`, [`docs/recipes/xero-au.md`](../docs/recipes/xero-au.md))
