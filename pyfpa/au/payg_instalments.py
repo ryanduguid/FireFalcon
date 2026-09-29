@@ -8,21 +8,28 @@ ATO legal database):
   28 February). The dates come from the activity statement rules in
   `gst_bas.yaml`, with their weekend move and reviewed_until horizon.
 - s 45-110: on the instalment income basis, the instalment is the applicable
-  instalment rate times the quarter's instalment income. Otherwise the ATO
-  notifies an amount (the GDP-adjusted notional tax basis).
+  instalment rate times the quarter's instalment income.
+- s 45-112: otherwise the Commissioner works out and notifies the amount for
+  each quarter (the GDP-adjusted notional tax basis).
 
-Monthly and annual payers, the two-instalment option and a head company's
-dates are not modelled. Instalment income here is whatever series the caller
-passes, such as GST-exclusive revenue as a proxy for ordinary income.
+Instalment income is gross business and investment income excluding GST.
+GST-exclusive sales revenue will do only when it is all of an entity's material
+instalment income; otherwise pass the full series. Monthly and annual payers,
+the two-instalment option and a head company's dates are not modelled.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Mapping
 
 import pandas as pd
 
-from pyfpa.au.gst import monthly_activity_statement_due_date, quarterly_bas_due_date
+from pyfpa.au.gst import (
+    _validate_monthly_series,
+    monthly_activity_statement_due_date,
+    quarterly_bas_due_date,
+)
 
 
 def payg_instalment_schedule(
@@ -30,26 +37,26 @@ def payg_instalment_schedule(
     *,
     deferred_bas_payer: bool,
     rate: float | None = None,
-    quarterly_amount: float | None = None,
+    notified_amounts: Mapping[str, float] | None = None,
 ) -> pd.DataFrame:
     """Instalments by quarter: columns quarter, due_date, amount.
 
-    Pass either `rate` (the instalment rate, applied to each quarter's
-    instalment income) or `quarterly_amount` (the amount the ATO notified).
-    `instalment_income` is monthly with a PeriodIndex and must start at the
-    beginning of an income-year quarter; a last quarter it does not finish is
-    left out, because its instalment is not yet known.
+    Pass either `rate`, the instalment rate assumed for every quarter and
+    applied to each quarter's instalment income, or `notified_amounts`, the
+    amount notified for each quarter keyed by the quarter's last month
+    ("2026-09"). `instalment_income` is monthly with a PeriodIndex, runs without
+    gaps or repeats from the start of an income-year quarter, and holds finite
+    amounts; a last quarter it does not finish is left out, because its
+    instalment is not yet known.
     """
-    if (rate is None) == (quarterly_amount is None):
-        raise ValueError("give either rate or quarterly_amount")
+    if (rate is None) == (notified_amounts is None):
+        raise ValueError("give either rate or notified_amounts")
     if rate is not None and not 0 <= rate <= 1:
         raise ValueError("rate must be between 0 and 1")
-    if quarterly_amount is not None and quarterly_amount < 0:
-        raise ValueError("quarterly_amount must be 0 or more")
+    _validate_monthly_series(instalment_income)
+    amounts: Mapping[str, float] = notified_amounts or {}
     index = instalment_income.index
-    if not isinstance(index, pd.PeriodIndex) or index.freqstr != "M" or not len(index):
-        raise ValueError("instalment_income needs a monthly PeriodIndex")
-    if index[0].month % 3 != 1:
+    if not len(index) or index[0].month % 3 != 1:
         raise ValueError("instalment_income must start at the beginning of a quarter (July, October, January or April)")
     rows = []
     for quarter, income in instalment_income.groupby(index.asfreq("Q-JUN")):
@@ -58,8 +65,19 @@ def payg_instalment_schedule(
             continue
         due = quarterly_bas_due_date(quarter_end) if deferred_bas_payer else (
             monthly_activity_statement_due_date(quarter_end))
-        amount = rate * float(income.sum()) if rate is not None else float(quarterly_amount or 0.0)
+        if rate is not None:
+            amount = rate * float(income.sum())
+        else:
+            if str(quarter_end) not in amounts:
+                raise ValueError(f"notified_amounts has no amount for the quarter ending {quarter_end}")
+            amount = float(amounts[str(quarter_end)])
+            if amount < 0:
+                raise ValueError(f"the notified amount for the quarter ending {quarter_end} is negative")
         rows.append({"quarter": str(quarter), "due_date": due, "amount": amount})
+    if notified_amounts is not None:
+        unused = sorted(set(amounts) - {str(q.asfreq("M", how="end")) for q in index.asfreq("Q-JUN").unique()})
+        if unused:
+            raise ValueError("notified_amounts names quarters outside instalment_income: " + ", ".join(unused))
     return pd.DataFrame(rows, columns=["quarter", "due_date", "amount"])
 
 

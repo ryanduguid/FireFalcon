@@ -4,8 +4,9 @@ Sources, checked 29 September 2026 on the ATO legal database: section 45-61
 (a quarter's instalment is due by the 21st of the month after the quarter; a
 deferred BAS payer's by the 28th, or 28 February for the December quarter) and
 section 45-110 (on the instalment income basis, the instalment is the
-applicable instalment rate times the quarter's instalment income). A weekend
-moves the date to the Monday, as the pack's BAS dates do.
+applicable instalment rate times the quarter's instalment income) and section
+45-112 (otherwise the Commissioner notifies the amount for each quarter). A
+weekend moves the date to the Monday, as the pack's BAS dates do.
 """
 
 from datetime import date
@@ -33,9 +34,10 @@ def test_the_rate_method_takes_the_rate_of_each_quarters_income(deferred, dates)
     assert schedule["amount"].tolist() == [150.0, 150.0]
 
 
-def test_the_amount_method_pays_the_notified_amount_each_quarter():
-    schedule = payg_instalment_schedule(INCOME, deferred_bas_payer=True, quarterly_amount=400.0)
-    assert schedule["amount"].tolist() == [400.0, 400.0]
+def test_the_amount_method_pays_each_quarters_own_notified_amount():
+    schedule = payg_instalment_schedule(INCOME, deferred_bas_payer=True,
+                                        notified_amounts={"2026-09": 400.0, "2026-12": 420.0})
+    assert schedule["amount"].tolist() == [400.0, 420.0]
 
 
 def test_a_quarter_the_series_has_not_finished_is_left_out():
@@ -51,15 +53,32 @@ def test_payments_by_month_is_ready_for_the_income_year_tax_schedule():
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
-        ({"rate": 0.05, "quarterly_amount": 400.0}, "either rate or quarterly_amount"),
-        ({}, "either rate or quarterly_amount"),
+        ({"rate": 0.05, "notified_amounts": {"2026-09": 400.0}}, "either rate or notified_amounts"),
+        ({}, "either rate or notified_amounts"),
         ({"rate": 1.5}, "rate"),
-        ({"quarterly_amount": -1.0}, "quarterly_amount"),
+        ({"notified_amounts": {"2026-09": 400.0}}, "no amount for the quarter ending 2026-12"),
+        ({"notified_amounts": {"2026-09": -1.0, "2026-12": 0.0}}, "negative"),
+        ({"notified_amounts": {"2026-09": 1.0, "2026-12": 1.0, "2027-03": 1.0}}, "outside instalment_income: 2027-03"),
     ],
 )
 def test_the_method_must_be_stated_once(kwargs, message):
     with pytest.raises(ValueError, match=message):
         payg_instalment_schedule(INCOME, deferred_bas_payer=False, **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        # July and September without August must not pass as a finished quarter.
+        (lambda s: s.drop(s.index[1]), "missing"),
+        (lambda s: s.iloc[[0, 1, 1, 2, 3, 4, 5]], "unique"),
+        (lambda s: s.where(s.index != s.index[2], float("nan")), "finite"),
+    ],
+    ids=["gap", "repeat", "nan"],
+)
+def test_income_must_run_without_gaps_repeats_or_missing_values(change, message):
+    with pytest.raises(ValueError, match=message):
+        payg_instalment_schedule(change(INCOME), deferred_bas_payer=False, rate=0.05)
 
 
 def test_income_must_start_at_a_quarter():
