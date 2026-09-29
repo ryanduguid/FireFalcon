@@ -108,6 +108,7 @@ dev = [
     { name = "formulas" },
     { name = "lxml" },
     { name = "mypy" },
+    { name = "payday-super-checker" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "setuptools" },
@@ -124,6 +125,7 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = "==2.3.1" },
     { name = "openpyxl", specifier = ">=3.1.3" },
     { name = "pandas", specifier = ">=2.2.3" },
+    { name = "payday-super-checker", marker = "extra == 'dev'", specifier = ">=0.1.8" },
     { name = "pydantic", specifier = ">=2.13.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
     { name = "pyyaml", specifier = ">=6.0" },
@@ -1063,6 +1065,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5a/82/42f767fc1c1143d6fd36efb827202a2d997a375e160a71eb2888a925aac1/pathspec-1.1.1.tar.gz", hash = "sha256:17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a", size = 135180, upload-time = "2026-04-27T01:46:08.907Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl", hash = "sha256:a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189", size = 57328, upload-time = "2026-04-27T01:46:07.06Z" },
+]
+
+[[package]]
+name = "payday-super-checker"
+version = "0.1.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/a1/1055bb10d314a77b886ac77247606835d9cb7cfb4def4e5dc0b2392d0ac1/payday_super_checker-0.1.8.tar.gz", hash = "sha256:6169f002593d4e8226f2ad3a584a3061694afe0444183ea2e8cd1c665dd8fb99", size = 371710, upload-time = "2026-09-27T04:39:27.099Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f5/b7/7e34c5b8daaf7916cc6d00a812cce3ba969d66a8b00060ed2e8b4519292f/payday_super_checker-0.1.8-py3-none-any.whl", hash = "sha256:dbe864b6b4c3ea31f1290d6220d82cf76299a4b74b33da188a2e8c46ca027bc5", size = 119850, upload-time = "2026-09-27T04:39:25.727Z" },
 ]
 
 [[package]]

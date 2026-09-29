@@ -36,6 +36,9 @@ dev = [
     # locked extra, pinned exactly as [build-system] requires.
     "setuptools==84.0.0",
     "formulas>=1.3.0",
+    # The Payday Super business-day calendar the super guarantee due-date tests
+    # run against; the package itself takes any calendar with the same methods.
+    "payday-super-checker>=0.1.8",
     "coverage==7.16.1",
     "diff-cover==10.5.1",
     "ruff==0.16.8",

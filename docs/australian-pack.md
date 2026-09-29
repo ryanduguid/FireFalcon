@@ -15,6 +15,9 @@ data-access-recipe and industry-pack paths in CONTRIBUTING:
   (`pyfpa.au.payroll_settlement`)
   - PAYG withholding due dates under Taxation Administration Act 1953,
     Schedule 1, section 16-75 (`pyfpa.au.paygw`)
+  - super guarantee due dates under Payday Super and the quarterly rules
+    before it, on a business-day calendar the caller passes
+    (`pyfpa.au.super_guarantee`)
 - **GST/BAS** - net GST from GST-exclusive series, monthly and
   quarterly settlement schedules, straight into the 13-week model
   (`pyfpa.au.gst`)
