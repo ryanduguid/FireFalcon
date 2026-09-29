@@ -118,7 +118,12 @@ def quarterly_bas_due_date(quarter_end: pd.Period) -> date:
 
 
 def monthly_activity_statement_due_date(month: pd.Period) -> date:
-    """Due date for the monthly activity statement for `month` (21st following)."""
+    """Standard due date for the monthly activity statement for `month`: the 21st following.
+
+    The ATO's 21 February date for an eligible business's December statement
+    (monthly GST, turnover up to $10 million, lodged electronically) is not
+    modelled, so December gives 21 January.
+    """
     require_bas_dates_reviewed(month.end_time.date())
     day = int(load_gst_bas_data()["monthly_due_day"])
     following = month + 1
