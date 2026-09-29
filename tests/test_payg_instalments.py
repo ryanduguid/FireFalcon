@@ -63,6 +63,14 @@ def test_a_notice_given_after_the_quarter_is_due_21_days_after_it():
     assert schedule["due_date"].tolist() == [date(2026, 11, 23), date(2027, 1, 21)]
 
 
+def test_a_late_notice_date_that_lands_on_a_weekend_moves_to_the_monday():
+    # Notified on Saturday 3 October 2026: the 21st day after is Saturday 24
+    # October, so the payment falls due on Monday 26 October.
+    notices = {"2026-09": _notice(400.0, date(2026, 10, 3)), "2026-12": _notice(420.0)}
+    schedule = payg_instalment_schedule(INCOME, deferred_bas_payer=True, notified_amounts=notices)
+    assert schedule["due_date"].tolist()[0] == date(2026, 10, 26)
+
+
 def test_a_notified_amount_needs_its_notice_date():
     with pytest.raises(TypeError, match="NotifiedAmount"):
         payg_instalment_schedule(INCOME, deferred_bas_payer=False,
