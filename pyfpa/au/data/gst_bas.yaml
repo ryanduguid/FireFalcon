@@ -2,9 +2,10 @@
 # Sources: ATO (GST rate; BAS due dates).
 # https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst
 # https://www.ato.gov.au/businesses-and-organisations/preparing-lodging-and-paying/business-activity-statements-bas/due-dates-for-lodging-and-paying-your-bas
-# PAYG withholding follows the same activity statement dates: small withholders
-# pay quarterly, medium withholders monthly (checked 2026-09-29 against
-# https://www.ato.gov.au/businesses-and-organisations/hiring-and-paying-your-workers/payg-withholding/paying-and-reporting-withheld-amounts/paying-and-reporting-payg-withholding-amounts-for-small-and-medium-withholders).
+# pyfpa.au.paygw takes PAYG withholding due dates from these rules: the dates in
+# Taxation Administration Act 1953, Schedule 1, section 16-75 are the 21st of
+# the following month and the quarterly dates below (checked 2026-09-29 against
+# https://www.ato.gov.au/law/view/document?docid=PAC/19530001/Sch1-16-75).
 # The maintainer verified the due dates below on 2026-09-29. A due-date lookup
 # for a month or quarter ending after reviewed_until raises until the sources
 # are re-checked and the date is moved.
