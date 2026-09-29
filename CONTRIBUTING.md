@@ -50,9 +50,9 @@ The existing [joined example driver](https://github.com/ryanduguid/accounting-re
 checks cash values and retained REVIEW findings. Separate operating-system artefacts
 retain fabricated results, failure diagnostics, the escaped summary, success manifest
 and replay record for seven days. These public routes require no
-private grant checkout or cross-repository secret. Workflow files do not configure
-branch protection. Linux keeps the `public-fixtures` check name; require the added
-`public-fixtures (Windows)` check separately if it should block merges.
+private grant checkout or cross-repository secret. Linux keeps the `public-fixtures`
+check name and Windows adds `public-fixtures (Windows)`; branch protection requires
+`public-fixtures-gates`, which needs both.
 
 1. Fork, branch, and make your change.
 2. **Add tests for new behaviour.** The project is test-first, and CI runs the suite on
