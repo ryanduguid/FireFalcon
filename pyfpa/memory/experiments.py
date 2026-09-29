@@ -87,9 +87,9 @@ def save_experiment(
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{experiment.slug}.experiment.yaml"
-    if path.exists() and not overwrite:
-        raise FileExistsError(f"experiment already exists: {path}")
-    path.write_text(yaml.safe_dump(experiment.model_dump(), sort_keys=False), encoding="utf-8")
+    text = yaml.safe_dump(experiment.model_dump(), sort_keys=False)
+    with path.open("w" if overwrite else "x", encoding="utf-8") as output:
+        output.write(text)
     return path
 
 
