@@ -15,6 +15,7 @@ import pandas as pd
 import pydantic
 import pytest
 
+from pyfpa.analysis.divestiture import Carveout, divest
 from pyfpa.analysis.forecast_review import review_forecast
 from pyfpa.config.schemas import EntityConfig
 from pyfpa.excel.model_workbook import model_to_excel
@@ -114,6 +115,18 @@ def test_the_review_checks_ebitda_with_the_bad_debts():
     broken.loc[broken.index[2], "bad_debts"] = math.nan
     codes = [(f.code, f.status.value) for f in review_forecast(broken, config).findings]
     assert ("FR-NON-FINITE", "FAIL") in codes and ("FR-IDENTITY-EBITDA", "NOT_RUN") in codes
+
+
+def test_a_divestiture_keeps_the_bad_debts_in_ebitda():
+    config = _config(BAD_DEBTS)
+    df = cashflow_from_config(config)
+    sold = divest(df, Carveout(revenue=40.0, gross_profit=40.0, opex=0.0),
+                  sale_month=3, proceeds=0.0, annual_rate=0.0, tax_rate=0.0)
+    # After the sale: 100 of revenue less the unit's 40, less 5 of bad debts
+    # held at the source amount, leaves 55 of EBITDA and profit.
+    assert _rounded(sold["ebitda"])[3:] == [55.0] * 9
+    assert _rounded(sold["net_income"])[3:] == [55.0] * 9
+    assert review_forecast(sold, config).findings == ()
 
 
 @pytest.mark.parametrize(
