@@ -8,7 +8,7 @@ exactly one source: a committed on-time schedule (`monthly.csv`,
 `daily-cash.csv`, `results.json`), an input file under `data/`, or, for the
 45-day-late case that no committed schedule records, the example's own
 forecast run with that delay. A separate test proves the committed files
-regenerate unchanged from the inputs.
+regenerate from the inputs unchanged apart from line endings.
 """
 
 from __future__ import annotations
@@ -28,6 +28,8 @@ OUTPUT = EXAMPLE / "output"
 DATA = EXAMPLE / "data"
 GENERATOR = EXAMPLE / "models" / "generated" / "lumbridge.py"
 MONEY = r"\(?\$-?[\d,]+(?:\.\d{2})?\)?"
+# The late case the briefing compares with on time; the generator uses the same delay.
+LATE_DAYS = 45
 
 
 def money(text: str) -> float:
@@ -49,12 +51,14 @@ def sources() -> dict:
     assumptions = json.loads((DATA / "assumptions.json").read_text(encoding="utf-8"))
     opening = pd.read_csv(DATA / "xero_bs.csv").set_index("Account")["Amount"]
     invoices = pd.read_csv(DATA / "invoices.csv", parse_dates=["receipt_date"]).set_index("id")
-    late = runpy.run_path(str(GENERATOR))["forecast"](delay_days=45)
+    pl = pd.read_csv(DATA / "xero_pl.csv")
+    late = runpy.run_path(str(GENERATOR))["forecast"](delay_days=LATE_DAYS)
     late_daily = late["daily"]["ending_cash"]
     delayed = invoices.loc[assumptions["delay_invoice"]]
     return {
         "monthly": monthly, "daily": daily, "results": results, "assumptions": assumptions,
         "opening": opening, "delayed": delayed, "late_monthly": late["monthly"], "late_daily": late_daily,
+        "september_revenue": pl.loc[pl["Account"].str.startswith("Sales"), "Amount"].sum(),
     }
 
 
@@ -76,6 +80,7 @@ def prose_figures() -> list[tuple[str, str, Callable[[], tuple]]]:
     m, a, late_daily = s["monthly"], s["assumptions"], s["late_daily"]
     trough = -late_daily.min()
     return [
+        ("late case heading", r"\| OPEN-V paid (\d+) days late \|", lambda: (LATE_DAYS,)),
         ("base-case profit", rf"The base case earns ({MONEY}) before income tax",
          lambda: (s["results"]["quarter_profit_before_tax"],)),
         ("table delay", r"This monthly table uses a (\d+)-day receipt delay",
@@ -89,7 +94,7 @@ def prose_figures() -> list[tuple[str, str, Callable[[], tuple]]]:
         ("trough", rf"reaches ({MONEY}) on (\d{{1,2}} \w+)",
          lambda: (late_daily.min(), day_month(late_daily.idxmin()))),
         ("delayed receipt date", r"the delayed receipt arrives on (\d{1,2} \w+)",
-         lambda: (day_month(s["delayed"]["receipt_date"] + pd.Timedelta(days=45)),)),
+         lambda: (day_month(s["delayed"]["receipt_date"] + pd.Timedelta(days=LATE_DAYS)),)),
         ("December payables",
          rf"At 31 December, ({MONEY}) GST, ({MONEY}) PAYG withholding and ({MONEY}) supplier invoices remain payable",
          lambda: (m["GST payable"].iloc[-1], m["PAYG withholding payable"].iloc[-1], m["Supplier payables"].iloc[-1])),
@@ -99,12 +104,12 @@ def prose_figures() -> list[tuple[str, str, Callable[[], tuple]]]:
          lambda: (m["Leave provision"].sum(),)),
         ("delayed receipt", rf"Confirm the ({MONEY}) OPEN-V receipt date",
          lambda: (s["delayed"]["net"] + s["delayed"]["gst"],)),
-        ("trough funding", rf"The 45-day delay needs ({MONEY}) of additional cash at the trough",
-         lambda: (trough,)),
+        ("trough funding", rf"The (\d+)-day delay needs ({MONEY}) of additional cash at the trough",
+         lambda: (LATE_DAYS, trough)),
         ("buffer funding", rf"or ({MONEY}) to preserve the assumed ({MONEY}) buffer",
          lambda: (trough + a["minimum_cash_buffer"], a["minimum_cash_buffer"])),
         ("run-rate revenue", rf"held at September's fabricated ({MONEY}) monthly run rate",
-         lambda: (m["Revenue"].iloc[0],)),
+         lambda: (s["september_revenue"],)),
         ("run-rate profit", rf"monthly pre-tax profit remains ({MONEY})",
          lambda: (m["Profit before tax"].iloc[0],)),
     ]
@@ -167,6 +172,7 @@ def test_every_briefing_figure_matches_its_one_source():
         ("| Minimum daily cash | $16,800.00 |", "| Minimum daily cash | $16,700.00 |"),
         ("The loan balance is $17,000", "The loan balance is $18,000"),
         ("reaches ($25,160) on 6 November", "reaches ($25,160) on 7 November"),
+        ("| OPEN-V paid 45 days late |", "| OPEN-V paid 60 days late |"),
     ],
 )
 def test_a_changed_figure_is_reported(old, new):
@@ -190,6 +196,8 @@ def test_rewording_prose_that_carries_no_figure_is_not_reported():
 
 
 def test_the_committed_outputs_regenerate_unchanged(tmp_path):
+    # Line endings are normalised, because a Windows checkout may store CRLF;
+    # every other byte must match.
     runpy.run_path(str(GENERATOR))["run"](tmp_path)
     for name in ("briefing.md", "monthly.csv", "cash13.csv", "daily-cash.csv", "results.json"):
         committed = (OUTPUT / name).read_bytes().replace(b"\r\n", b"\n")
