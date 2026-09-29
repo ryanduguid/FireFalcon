@@ -11,9 +11,12 @@ health) and input-taxed (financial supplies, residential rent) revenue
 by exclusion; likewise `creditable_purchases_pct` for acquisitions
 without input tax credits.
 
-A due date on a weekend moves to the following Monday, which is the ATO's
-next-business-day concession. Public holidays are not modelled: they differ
-by state and this module carries no holiday calendar.
+A due date on a weekend moves to the following Monday. Taxation Administration
+Act 1953 s 8AAZMB also moves a date that falls on a public holiday for the
+whole of any State or Territory, but this module carries no holiday calendar,
+so such a date is left as is. For example, 28 February 2027 is a Sunday; the
+Monday it moves to, 1 March, is Labour Day throughout Western Australia, so the
+statutory date is Tuesday 2 March 2027, one day later than this module gives.
 """
 
 from __future__ import annotations
@@ -98,10 +101,11 @@ def monthly_gst(
 def _next_business_day(due: date) -> date:
     """Move a weekend due date to the following Monday.
 
-    The ATO allows lodgment and payment on the next business day when a due
-    date falls on a weekend or public holiday, and these dates drive cash
-    timing. Public holidays are not modelled: they differ by state and this
-    module carries no holiday calendar, so a due date on one is left as is.
+    Taxation Administration Act 1953 s 8AAZMB makes a tax debt due on the next
+    business day when its day is a weekend or a public holiday for the whole of
+    any State or Territory, and these dates drive cash timing. Public holidays
+    are not modelled: this module carries no holiday calendar, so a due date on
+    one is left as is.
     """
     shift = {5: 2, 6: 1}.get(due.weekday(), 0)
     return due + timedelta(days=shift)
