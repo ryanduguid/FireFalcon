@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import math
 import statistics
 
 from pydantic import BaseModel
@@ -57,7 +58,10 @@ def validate_prior(
     actuals. A prior is `validated` if the mean fitness delta (new - original) is
     <= tolerance with >= 2 folds - a peer-derived value does not degrade held-out fit.
     Repeated workspaces are rejected: a fold whose peers include copies of the
-    held-out client is not held out.
+    held-out client is not held out. A fold whose peer-derived value leaves the
+    held-out client with no forecast, because the engine refuses the result (for
+    example impossible working-capital flows), counts as an infinitely worse fit,
+    so the prior cannot validate and the other folds still run.
 
     Pass `candidate` to stamp its digest and an attestation into the result.
     Without it both stay empty and `promote_prior` refuses the result: a fitness
@@ -92,7 +96,11 @@ def validate_prior(
         prior_value = statistics.median(peer_values)
         data = copy.deepcopy(snap.assumptions)
         apply_override(data, driver, prior_value)
-        forecast = cashflow_from_config(EntityConfig.model_validate(data))
+        try:
+            forecast = cashflow_from_config(EntityConfig.model_validate(data))
+        except ValueError:
+            deltas.append(math.inf)
+            continue
         # Score over the SAME lines/weights Loop A used for this snapshot, so the new
         # fitness and the stored fitness are apples-to-apples (not assumed defaults).
         scored_lines = list(score.per_line) or DEFAULT_SCORE_LINES
