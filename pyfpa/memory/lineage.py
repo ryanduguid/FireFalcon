@@ -123,7 +123,9 @@ class MappingRegistry(BaseModel):
 
 def load_source_registry(path: str | Path) -> SourceRegistry:
     path = Path(path)
-    if not path.exists():
+    try:
+        path.lstat()
+    except FileNotFoundError:
         return SourceRegistry()
     return SourceRegistry.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
 
@@ -154,7 +156,9 @@ def register_source(
 
 def load_mapping_registry(path: str | Path) -> MappingRegistry:
     path = Path(path)
-    if not path.exists():
+    try:
+        path.lstat()
+    except FileNotFoundError:
         return MappingRegistry()
     return MappingRegistry.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
 

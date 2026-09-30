@@ -65,7 +65,9 @@ def save_model_registry(registry: ModelRegistry, path: str | Path) -> None:
 
 def load_model_registry(path: str | Path) -> ModelRegistry:
     path = Path(path)
-    if not path.exists():
+    try:
+        path.lstat()
+    except FileNotFoundError:
         return ModelRegistry()
     return ModelRegistry.model_validate(read_yaml(path))
 

@@ -70,7 +70,9 @@ class EntrypointRegistry(BaseModel):
 
 def load_entrypoint_registry(path: str | Path) -> EntrypointRegistry:
     path = Path(path)
-    if not path.exists():
+    try:
+        path.lstat()
+    except FileNotFoundError:
         return EntrypointRegistry()
     return EntrypointRegistry.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
 
