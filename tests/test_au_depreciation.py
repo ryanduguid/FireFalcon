@@ -226,6 +226,39 @@ def _resealed(tmp_path, name, mutate):
     return path
 
 
+@pytest.mark.parametrize("value", [None, "false", 0, 1, 0.0, [], [False], {}, {"value": False}])
+def test_a_non_boolean_synthetic_flag_is_refused(tmp_path, value):
+    path = _resealed(
+        tmp_path, "malformed-flag.json",
+        lambda record: record["calculation"].__setitem__("synthetic_input", value),
+    )
+    with pytest.raises(
+        dep.DepreciationEvidenceError, match=r"calculation\.synthetic_input.*not a boolean",
+    ):
+        dep.load_evidence(path)
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_a_boolean_synthetic_flag_is_preserved(tmp_path, value):
+    path = _resealed(
+        tmp_path, "boolean-flag.json",
+        lambda record: record["calculation"].__setitem__("synthetic_input", value),
+    )
+    evidence = dep.load_evidence(path)
+    assert evidence.synthetic_input is value
+    assert evidence.usable is True
+
+
+def test_an_absent_synthetic_flag_keeps_its_false_default(tmp_path):
+    path = _resealed(
+        tmp_path, "absent-flag.json",
+        lambda record: record["calculation"].pop("synthetic_input"),
+    )
+    evidence = dep.load_evidence(path)
+    assert evidence.synthetic_input is False
+    assert evidence.usable is True
+
+
 def test_a_producer_that_rejected_its_own_response_is_not_usable(tmp_path):
     # A digest-valid file can carry a COMPUTED call beside a validation block
     # that rejected it. The rejection decides, or a figure the producer refused

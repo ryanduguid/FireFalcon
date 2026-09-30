@@ -56,6 +56,11 @@ beside a validation block that rejected the response, and the rejection is the
 one that decides. A finding the producer prefixed with `note:` is an
 observation it did not block on, and it does not block here either.
 
+When present, `calculation.synthetic_input` must be a JSON boolean.
+`load_evidence` rejects other values, including `null`. If the field is absent,
+the reader retains `False` for compatibility. A returned `False` therefore does
+not prove that the source data was non-synthetic.
+
 ## Checking the movement
 
 ```python
