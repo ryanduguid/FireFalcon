@@ -5,6 +5,8 @@ import tomllib
 import unittest
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = "ec6b0ee76446f11aefb7fa0c203f2e01b4c9a711"
 # These are component jobs from successful main-branch runs, plus aggregates that
@@ -15,9 +17,12 @@ REQUIRED = {
         ".github/workflows/no-ai-attribution.yml: Attribution policy / Attribution policy runner",
         ".github/workflows/ci.yml: connector-security-windows",
         ".github/workflows/ci.yml: lint",
-        ".github/workflows/ci.yml: minimum-resolution (ubuntu-latest)",
-        ".github/workflows/ci.yml: minimum-resolution (windows-latest)",
-        ".github/workflows/ci.yml: test (3.11)",
+        ".github/workflows/ci.yml: minimum-resolution (ubuntu-latest, 3.12)",
+        ".github/workflows/ci.yml: minimum-resolution (ubuntu-latest, 3.13)",
+        ".github/workflows/ci.yml: minimum-resolution (ubuntu-latest, 3.14)",
+        ".github/workflows/ci.yml: minimum-resolution (windows-latest, 3.12)",
+        ".github/workflows/ci.yml: minimum-resolution (windows-latest, 3.13)",
+        ".github/workflows/ci.yml: minimum-resolution (windows-latest, 3.14)",
         ".github/workflows/ci.yml: test (3.12)",
         ".github/workflows/ci.yml: test (3.13)",
         ".github/workflows/ci.yml: test (3.14)",
@@ -30,6 +35,28 @@ REQUIRED = {
 
 
 class ReleaseChecksTests(unittest.TestCase):
+    def test_minimum_dependency_jobs_match_release_selectors(self) -> None:
+        workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+        job = workflow["jobs"]["minimum-resolution"]
+        self.assertEqual(
+            job["name"], "minimum-resolution (${{ matrix.os }}, ${{ matrix.python-version }})"
+        )
+        matrix = job["strategy"]["matrix"]
+        self.assertEqual(matrix, {
+            "os": ["ubuntu-latest", "windows-latest"],
+            "python-version": ["3.12", "3.13", "3.14"],
+        })
+        setup = next(step for step in job["steps"]
+                     if step.get("uses", "").startswith("actions/setup-python@"))
+        self.assertEqual(setup["with"]["python-version"], "${{ matrix.python-version }}")
+        expected = {
+            f".github/workflows/ci.yml: minimum-resolution ({os}, {version})"
+            for os in matrix["os"] for version in matrix["python-version"]
+        }
+        self.assertEqual(expected, {
+            selector for selector in REQUIRED["release.yml"] if ": minimum-resolution " in selector
+        })
+
     def test_every_release_caller_requires_its_component_checks(self) -> None:
         workflows = ROOT / ".github" / "workflows"
         callers = sorted(

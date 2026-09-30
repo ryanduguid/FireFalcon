@@ -4,7 +4,7 @@
 [![CodeQL](https://github.com/ryanduguid/au-fpa-pack/actions/workflows/codeql.yml/badge.svg)](https://github.com/ryanduguid/au-fpa-pack/actions/workflows/codeql.yml)
 [![PyPI](https://img.shields.io/pypi/v/au-fpa-pack.svg?color=5C2D91&labelColor=04001F)](https://pypi.org/project/au-fpa-pack/)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-5C2D91.svg?labelColor=04001F)](LICENSE)
-[![python](https://img.shields.io/badge/python-3.11%2B-5C2D91.svg?labelColor=04001F)](https://www.python.org/)
+[![python](https://img.shields.io/badge/python-3.12%2B-5C2D91.svg?labelColor=04001F)](https://www.python.org/)
 
 An Australian extension of [openfpa](https://github.com/JeffBrines/openfpa), by
 Guiderail: 30 June financial years, Xero AU account mapping, GST and BAS cash timing
@@ -35,7 +35,7 @@ Lumbridge Services is a fictional Newcastle maintenance business. Its Varrock an
 
 **Try it without Python:** [download the Excel workbook](https://duguid.com.au/assets/examples/lumbridge/lumbridge.xlsx), or [get the sample pack with its source files](https://duguid.com.au/assets/examples/lumbridge/lumbridge-sample-pack.zip). Use desktop Excel with automatic calculation. [Read the case and compare both scenarios](https://duguid.com.au/examples/profit-vs-cash-flow/) in your browser before opening the file.
 
-To reproduce it from a clone, use Python 3.11 and the locked development environment:
+To reproduce it from a clone, use Python 3.12 and the locked development environment:
 
 ```bash
 uv sync --locked --extra dev
