@@ -9,6 +9,7 @@ import pandas as pd
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from pyfpa.io.loaders import read_optional_yaml
 from pyfpa.io.pl_csv import _parse_amount
 
 
@@ -122,10 +123,8 @@ class MappingRegistry(BaseModel):
 
 
 def load_source_registry(path: str | Path) -> SourceRegistry:
-    path = Path(path)
-    if not path.exists():
-        return SourceRegistry()
-    return SourceRegistry.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
+    data = read_optional_yaml(path)
+    return SourceRegistry.model_validate({} if data is None else data)
 
 
 def save_source_registry(registry: SourceRegistry, path: str | Path) -> None:
@@ -153,10 +152,8 @@ def register_source(
 
 
 def load_mapping_registry(path: str | Path) -> MappingRegistry:
-    path = Path(path)
-    if not path.exists():
-        return MappingRegistry()
-    return MappingRegistry.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
+    data = read_optional_yaml(path)
+    return MappingRegistry.model_validate({} if data is None else data)
 
 
 def save_mapping_registry(registry: MappingRegistry, path: str | Path) -> None:

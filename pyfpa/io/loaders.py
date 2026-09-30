@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,24 @@ def read_yaml(path: str | Path) -> Any:
     workspace written on one machine reads back on another.
     """
     return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+
+
+def read_optional_yaml(path: str | Path) -> Any:
+    """Return an empty mapping for absence, but propagate broken paths and reads."""
+    path = Path(path)
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        for parent in path.parents:
+            try:
+                parent.lstat()
+            except FileNotFoundError:
+                continue
+            if not stat.S_ISDIR(parent.stat().st_mode):
+                raise
+            return {}
+        raise
+    return read_yaml(path)
 
 
 def write_yaml(path: str | Path, data: Any) -> None:

@@ -6,6 +6,8 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
+from pyfpa.io.loaders import read_optional_yaml
+
 EntrypointKind = Literal[
     "forecast",
     "close",
@@ -69,10 +71,8 @@ class EntrypointRegistry(BaseModel):
 
 
 def load_entrypoint_registry(path: str | Path) -> EntrypointRegistry:
-    path = Path(path)
-    if not path.exists():
-        return EntrypointRegistry()
-    return EntrypointRegistry.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
+    data = read_optional_yaml(path)
+    return EntrypointRegistry.model_validate({} if data is None else data)
 
 
 def save_entrypoint_registry(registry: EntrypointRegistry, path: str | Path) -> None:
