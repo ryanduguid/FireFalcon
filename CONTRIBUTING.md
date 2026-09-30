@@ -20,10 +20,8 @@ pytest -m network  # the live checks, which fetch RBA CSVs over the internet
 CI runs `ruff check .` and `mypy` before the test matrix, so a lint or typing
 failure stops the run early. `ruff check . --fix` applies the safe fixes.
 
-`mypy` checks against Python 3.11, the floor in `requires-python`, and CI runs it
-on a 3.11 environment. Run it on 3.11 too: on 3.12 or newer, pip resolves numpy
-2.5, whose stubs use syntax mypy will not parse while targeting 3.11, and you get
-an error inside `numpy/__init__.pyi` rather than anything about your change.
+`mypy` checks against Python 3.12, the minimum in `requires-python`.
+Run lint and type checks in a Python 3.12 environment, as CI does.
 
 `pytest.ini` deselects the `network` marker by default, so a Reserve Bank outage or a
 published layout change cannot fail a branch that did not cause it. Run `pytest -m
@@ -32,10 +30,11 @@ network` when you touch `pyfpa/au/drivers.py` or refresh the RBA fixtures under
 
 The distribution is `au-fpa-pack`; the importable package is `pyfpa` (`import pyfpa`).
 
-The openpyxl minimum is 3.1.3. Earlier versions can retain workbook file handles
+Pandas 3 requires openpyxl 3.1.5 or newer. Versions before 3.1.3 can retain workbook file handles
 on Windows with Python 3.11.8 or newer, preventing verified exports from replacing
 their destination. See [openpyxl issue 2149 in its release notes](https://openpyxl.readthedocs.io/en/stable/changes.html).
-CI runs the minimum-dependency suite on both Linux and Windows.
+CI runs the minimum-dependency suite on Python 3.12, 3.13 and 3.14 on both Linux
+and Windows.
 
 ## The workflow
 
@@ -56,7 +55,7 @@ check name and Windows adds `public-fixtures (Windows)`; branch protection requi
 
 1. Fork, branch, and make your change.
 2. **Add tests for new behaviour.** The project is test-first, and CI runs the suite on
-   Python 3.11, 3.12, 3.13, and 3.14. A green suite is required to merge, as are clean
+   Python 3.12, 3.13, and 3.14. A green suite is required to merge, as are clean
    `ruff check .` and `mypy` runs.
 3. Open a PR describing what you changed and why. For anything non-trivial, describe the
    approach in a draft PR before you build: Issues are switched off in this repository, and

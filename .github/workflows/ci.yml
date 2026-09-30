@@ -25,13 +25,11 @@ jobs:
         with:
           persist-credentials: false
 
-      # 3.11 is the floor in requires-python and the version [tool.mypy] targets.
-      # numpy ships PEP 695 stubs from the 2.5 series it resolves to on 3.12+,
-      # which mypy cannot parse while checking under python_version = "3.11".
-      - name: Set up Python 3.11
+      # Run lint and type checks on the minimum supported Python version.
+      - name: Set up Python 3.12
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -59,7 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -113,6 +111,7 @@ jobs:
         run: uv audit --locked
 
   minimum-resolution:
+    name: minimum-resolution (${{ matrix.os }}, ${{ matrix.python-version }})
     needs: lint
     timeout-minutes: 15
     permissions:
@@ -122,16 +121,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        python-version: ["3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Set up Python 3.11
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0

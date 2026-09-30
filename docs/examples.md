@@ -49,6 +49,6 @@ The example has 4 distinct phases:
 4. **Capital allocation sensitivity.** A labelled Marucci divestiture scenario
    shows the tradeoff between free cash flow and leverage.
 
-The full proof runs in CI across Python 3.11, 3.12, 3.13, and 3.14. See
+The full proof runs in CI across Python 3.12, 3.13, and 3.14. See
 [`examples/foxfactory/README.md`](../examples/foxfactory/README.md) for the
 methodology and limitations.
