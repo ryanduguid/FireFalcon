@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field, model_validator
 
-from pyfpa.io.loaders import read_yaml, write_yaml
+from pyfpa.io.loaders import read_optional_yaml, write_yaml
 from pyfpa.research.epochs import ResearchEpoch, evaluate_challenger
 
 if TYPE_CHECKING:
@@ -64,12 +64,7 @@ def save_model_registry(registry: ModelRegistry, path: str | Path) -> None:
 
 
 def load_model_registry(path: str | Path) -> ModelRegistry:
-    path = Path(path)
-    try:
-        path.lstat()
-    except FileNotFoundError:
-        return ModelRegistry()
-    return ModelRegistry.model_validate(read_yaml(path))
+    return ModelRegistry.model_validate(read_optional_yaml(path))
 
 
 def register_challenger(
