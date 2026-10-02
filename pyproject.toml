@@ -40,8 +40,8 @@ dev = [
     # run against; the package itself takes any calendar with the same methods.
     "payday-super-checker>=0.1.8",
     "coverage==7.16.1",
-    "diff-cover==10.5.1",
-    "ruff==0.16.8",
+    "diff-cover==10.6.0",
+    "ruff==0.16.9",
     "mypy==2.3.1",
     "types-PyYAML==6.0.12.20260906",
 ]
