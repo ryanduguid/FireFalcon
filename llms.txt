@@ -1,27 +1,42 @@
-# au-fpa-pack - Australian FP&A pack for openfpa
-> An Australian extension of the openfpa workbench: 30 June financial years, Xero AU mapping, GST and BAS cash timing, and payroll on-cost assumptions. Source-only, with an agent-facing CLI, a Python kernel and 17 skills.
+# au-fpa-pack
 
-## Package overview
-- **Repository**: https://github.com/ryanduguid/au-fpa-pack
-- **Names**: the distribution is `au-fpa-pack`, the import is `pyfpa`, the console script is `openfpa`.
-- **Upstream**: openfpa by Jeff Brines / Guiderail (https://github.com/JeffBrines/openfpa). MIT licensed; both attributions are retained in LICENSE.
-- **Install**: `pip install au-fpa-pack` for the published 0.1.2, or `uv sync --locked --extra dev` from a clone for development. Version 0.1.2 also has an immutable GitHub release.
-- **Python**: requires 3.12 or newer; tested on 3.12, 3.13 and 3.14.
+> Australian extension of the openfpa FP&A workbench: 30 June financial years, Xero AU mapping, GST and BAS cash timing, and payroll on-cost assumptions, with an agent-facing CLI, a Python kernel and 17 skills. Forecasting aids, not advice; examples use fabricated or public data.
+
+- Names: the distribution is `au-fpa-pack`, the import is `pyfpa` and the console script is `openfpa`. `.claude-plugin/plugin.json` declares the repository as the `openfpa` Claude Code plugin.
+- Install: `pip install au-fpa-pack` for the published release (see https://pypi.org/project/au-fpa-pack/), or `uv sync --locked --extra dev` from a clone. Requires Python 3.12 or later.
+- Upstream: [openfpa](https://github.com/JeffBrines/openfpa) by Jeff Brines and Guiderail. MIT licensed; both attributions are kept in LICENSE.
+- A competent human approves the assumptions and any funding decision. Rates and dates in docs/australian-pack.md are recorded modelling assumptions with sources, not a tax engine.
 
 ## What is here
-- **Kernel (`pyfpa/`)**: forecast schemas and accounting mechanics (`models/`, `cash13/`, `analysis/`, `config/`, `io/`), verified Excel export (`excel/`), Australian rules (`au/`), forecast scoring and holdouts (`backtest/`), company memory (`memory/`), the champion and challenger loop (`research/`) and cross-client learning (`portfolio/`).
-- **CLI (`openfpa`)**: JSON-emitting workspace commands for intake, source registration, mappings, reconciliation, connector scaffolding, corrections, scorecards, context packs and Excel export. Documented in docs/cli-reference.md.
-- **Skills (`skills/`)**: 17 skills. Sixteen `fpa-` skills cover Australian drivers, GST and BAS, payroll, Xero onboarding, model scaffolding, actuals wiring, Excel export, monthly close, cash runway, board briefings, CFO judgement, corrections, backtesting, the research loop and portfolio learning. `generated/sku-profitability` is the worked example of a company-specific generated skill.
-- **Plugin manifest**: `.claude-plugin/plugin.json` declares the repository as the `openfpa` Claude Code plugin.
-- **Examples (`examples/`)**: Lumbridge Services (synthetic NSW maintenance business, the README headline case), Harbour Light (synthetic Victorian lighting wholesaler, FY2027 Xero, payroll and GST), Ridgeline Chair Co. (synthetic product company), ARB Corporation (ASX: ARB, source-traced to the FY2025 Appendix 4E) and Fox Factory Holding Corp. (public SEC data).
 
-## Australian scope
-1. **Calendar**: 30 June financial years with `FY2027`, `Q1 FY2027` and `1H FY2027` labels and dd/mm/yyyy dates.
-2. **Payroll**: super guarantee, state payroll tax across all 8 jurisdictions with effective dates, workers compensation, leave provisions and contractors.
-3. **GST and BAS**: net GST from GST-exclusive series, with monthly and quarterly settlement timing fed into the 13-week cash model.
-4. **Rates and dates**: recorded with their sources in docs/australian-pack.md. They are modelling assumptions, not a tax engine.
+- Kernel (`pyfpa/`): forecast schemas and accounting mechanics (`models/`, `cash13/`, `analysis/`, `config/`, `io/`), verified Excel export (`excel/`), Australian rules (`au/`), forecast scoring and holdouts (`backtest/`), company memory (`memory/`), the champion and challenger loop (`research/`) and cross-client learning (`portfolio/`).
+- CLI (`openfpa`): JSON-emitting workspace commands for intake, source registration, mappings, reconciliation, connector scaffolding, corrections, scorecards, context packs and Excel export.
+- Skills (`skills/`): 16 `fpa-` skills covering Australian drivers, GST and BAS, payroll, Xero onboarding, model scaffolding, actuals wiring, Excel export, monthly close, cash runway, board briefings, CFO judgement, corrections, backtesting, the research loop and portfolio learning, plus `generated/sku-profitability` as a worked company-specific skill.
+- Australian scope: `FY2027`, `Q1 FY2027` and `1H FY2027` labels and dd/mm/yyyy dates; super guarantee, effective-dated payroll tax in all 8 states and territories, workers compensation, leave provisions and contractors; net GST from GST-exclusive series with monthly or quarterly settlement feeding the 13-week cash model.
 
-## Limits
-1. **Not advice**: these are forecasting aids. A competent human approves the assumptions and any funding decision. See DISCLAIMER.md.
-2. **Synthetic headline**: the Lumbridge figures in README.md come from fabricated records. They do not establish client outcomes or forecast accuracy, and the independent accountant trial is still pending.
-3. **Public-company examples**: the ARB and Fox Factory examples reproduce published filings and label their sensitivities. Reproducing reported mechanics is not forecast skill.
+## Docs
+
+- [README](https://github.com/ryanduguid/au-fpa-pack/blob/main/README.md): the Lumbridge headline case, Excel download and reproduction steps.
+- [Installation](https://github.com/ryanduguid/au-fpa-pack/blob/main/docs/installation.md)
+- [Australian pack](https://github.com/ryanduguid/au-fpa-pack/blob/main/docs/australian-pack.md): calendar, payroll, GST and BAS rules with their sources.
+- [CLI reference](https://github.com/ryanduguid/au-fpa-pack/blob/main/docs/cli-reference.md)
+- [Python kernel](https://github.com/ryanduguid/au-fpa-pack/blob/main/docs/python-kernel.md)
+- [Agent-native workspace](https://github.com/ryanduguid/au-fpa-pack/blob/main/docs/agent-native-workspace.md): company memory and generated namespaces.
+- [Examples index](https://github.com/ryanduguid/au-fpa-pack/blob/main/docs/examples.md)
+
+## Examples
+
+- [Lumbridge Services](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/lumbridge-services): fictional Newcastle NSW maintenance business. A 45-day receipt delay changes cash and receivables without changing profit. The figures come from fabricated records; the independent accountant trial is pending. Browser walkthrough: https://duguid.com.au/examples/profit-vs-cash-flow/.
+- [Harbour Light](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/harbour-light): synthetic Victorian lighting wholesaler for FY2027, with Xero, payroll and GST fixtures.
+- [Keldagrim Forge](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/keldagrim-forge): fictional Hunter Valley metal fabricator used as a timed model drill.
+- [Quarter close](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/quarter-close): a fabricated three-month close and cash simulation from 30 September 2026.
+- [Supplier invoices to planned cash](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/creditor-cash), [restricted cash planning](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/restricted-cash) and [WIP to project cash](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/job-to-cash).
+- [Ridgeline Chair Co.](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/ridgeline): synthetic product company where an inventory build creates a near-term liquidity gap.
+- [ARB Corporation](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/arb) (ASX: ARB) and [Fox Factory](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/foxfactory): public-company examples source-traced to published filings. Reproducing reported mechanics shows arithmetic, not forecast skill.
+
+## Optional
+
+- [Upstream workbench notes](https://github.com/ryanduguid/au-fpa-pack/blob/main/docs/upstream-workbench.md)
+- [AI register entry](https://github.com/ryanduguid/au-fpa-pack/blob/main/docs/ai-register-entry.md)
+- [Release notes](https://github.com/ryanduguid/au-fpa-pack/blob/main/RELEASE_NOTES.md)
+- [Disclaimer](https://github.com/ryanduguid/au-fpa-pack/blob/main/DISCLAIMER.md)
