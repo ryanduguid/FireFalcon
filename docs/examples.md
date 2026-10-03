@@ -13,7 +13,7 @@ uv run --locked --extra dev python examples/lumbridge-services/models/generated/
 
 The output includes a verified Excel workbook, management briefing and CSVs.
 The [trial guide](../examples/lumbridge-services/TRIAL.md) separates technical
-verification from the independent accountant trial, which remains pending.
+verification from an independent accountant trial, which has not been performed.
 
 ### Ridgeline Chair Co.
 

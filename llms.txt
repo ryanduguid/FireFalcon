@@ -26,7 +26,7 @@
 
 ## Examples
 
-- [Lumbridge Services](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/lumbridge-services): fictional Newcastle NSW maintenance business. A 45-day receipt delay changes cash and receivables without changing profit. The figures come from fabricated records; the independent accountant trial is pending. Browser walkthrough: https://duguid.com.au/examples/profit-vs-cash-flow/.
+- [Lumbridge Services](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/lumbridge-services): fictional Newcastle NSW maintenance business. A 45-day receipt delay changes cash and receivables without changing profit. The figures come from fabricated records, and no independent accountant has reviewed them. Browser walkthrough: https://duguid.com.au/examples/profit-vs-cash-flow/.
 - [Harbour Light](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/harbour-light): synthetic Victorian lighting wholesaler for FY2027, with Xero, payroll and GST fixtures.
 - [Keldagrim Forge](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/keldagrim-forge): fictional Hunter Valley metal fabricator used as a timed model drill.
 - [Quarter close](https://github.com/ryanduguid/au-fpa-pack/tree/main/examples/quarter-close): a fabricated three-month close and cash simulation from 30 September 2026.

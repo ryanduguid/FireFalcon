@@ -58,7 +58,7 @@ The briefing, the monthly and cash schedules and the JSON summary from that run 
 
 In desktop Excel, change `Assumptions!B2` from 0 to 45. This delays one $44,000 receipt and creates a $25,160 cash shortfall on 6 November without changing profit. Restore 0 after use. The workbook supports only whole-day receipt delays from 0 to 120; CSVs and briefing text are fixed exports.
 
-Read the [assumptions and limits](examples/lumbridge-services/README.md), then use the [independent trial guide](examples/lumbridge-services/TRIAL.md) to record a review. The independent accountant trial remains pending. This synthetic case does not establish client outcomes or forecast accuracy.
+Read the [assumptions and limits](examples/lumbridge-services/README.md) before using the example. This synthetic case does not establish client outcomes or forecast accuracy.
 
 [Harbour Light](examples/harbour-light/README.md) provides a separate Victorian wholesale example with FY2027 reporting and quarterly BAS cash timing.
 
