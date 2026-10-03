@@ -1,5 +1,8 @@
 ## Australian pack (fork extension)
 
+For worked cash decisions, run the [Ridgeline scenario comparison](../examples/ridgeline/README.md).
+It uses the existing weekly engine and defines each metric's unit, period and formula.
+
 This fork adds an Australian localisation in `pyfpa/au/`, built on the
 data-access-recipe and industry-pack paths in CONTRIBUTING:
 
