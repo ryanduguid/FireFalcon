@@ -1,6 +1,5 @@
+import json
 import shutil
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -14,19 +13,17 @@ FIXTURE_PL = Path(__file__).resolve().parent.parent / "pyfpa" / "io" / "fixtures
 FIXTURE_BS = Path(__file__).resolve().parent.parent / "pyfpa" / "io" / "fixtures" / "xero_bs_au.csv"
 
 
-def _cli(*args: str) -> dict:
-    import json
+@pytest.fixture
+def cli(run_cli):
+    """Run `openfpa` in this process, as conftest's run_cli does, and return its JSON."""
 
-    result = subprocess.run(
-        [sys.executable, "-m", "pyfpa.cli", *args],
-        capture_output=True,
-        text=True,
-        cwd=Path(__file__).resolve().parent.parent,
-        check=False,
-    )
-    payload = json.loads(result.stdout)
-    payload["_returncode"] = result.returncode
-    return payload
+    def _call(*args: str) -> dict:
+        result = run_cli(*args)
+        payload = json.loads(result.stdout)
+        payload["_returncode"] = result.returncode
+        return payload
+
+    return _call
 
 
 def test_parse_pl_fixture():
@@ -106,7 +103,7 @@ def test_empty_file_rejected(tmp_path):
         read_xero_report(bad)
 
 
-def test_end_to_end_lineage_pipeline(tmp_path):
+def test_end_to_end_lineage_pipeline(tmp_path, cli):
     """Fixture -> init -> source-register -> mappings -> reconcile reports a difference.
 
     Every account is mapped, so nothing is unmapped, but no expected totals were
@@ -124,10 +121,10 @@ def test_end_to_end_lineage_pipeline(tmp_path):
     root = tmp_path / "acme"
     root.mkdir()
 
-    init = _cli("init", str(root), "--business-name", "Acme Pty Ltd")
+    init = cli("init", str(root), "--business-name", "Acme Pty Ltd")
     assert init["ok"] is True, init
 
-    reg = _cli(
+    reg = cli(
         "source-register", str(root),
         "--source-id", "xero-au",
         "--kind", "accounting_system",
@@ -140,7 +137,7 @@ def test_end_to_end_lineage_pipeline(tmp_path):
     assert reg["ok"] is True, reg
 
     for account in report.by_account():
-        mapping = _cli(
+        mapping = cli(
             "mapping-register", str(root),
             "--source-id", "xero-au",
             "--source-value", account,
@@ -148,7 +145,7 @@ def test_end_to_end_lineage_pipeline(tmp_path):
         )
         assert mapping["ok"] is True, (account, mapping)
 
-    reconcile = _cli(
+    reconcile = cli(
         "reconcile-source", str(root),
         "--source-id", "xero-au",
         "--account-column", "Account",
@@ -161,15 +158,15 @@ def test_end_to_end_lineage_pipeline(tmp_path):
     assert reconcile["data"]["passed"] is False
 
 
-def test_reconcile_fails_on_unmapped_accounts(tmp_path):
+def test_reconcile_fails_on_unmapped_accounts(tmp_path, cli):
     """Unmapped accounts must surface, not default."""
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     shutil.copy(FIXTURE_PL, data_dir / "xero_pl.csv")
     root = tmp_path / "acme"
     root.mkdir()
-    _cli("init", str(root), "--business-name", "Acme Pty Ltd")
-    _cli(
+    cli("init", str(root), "--business-name", "Acme Pty Ltd")
+    cli(
         "source-register", str(root),
         "--source-id", "xero-au",
         "--kind", "accounting_system",
@@ -179,7 +176,7 @@ def test_reconcile_fails_on_unmapped_accounts(tmp_path):
         "--period", "2026-07",
         "--extraction-method", "Xero P&L CSV export, GST-exclusive",
     )
-    reconcile = _cli(
+    reconcile = cli(
         "reconcile-source", str(root),
         "--source-id", "xero-au",
         "--account-column", "Account",
