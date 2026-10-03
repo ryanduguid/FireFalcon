@@ -93,7 +93,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True, help="new directory for the fabricated decision pack")
     args = parser.parse_args()
-    args.output.mkdir(parents=True, exist_ok=False)
+    # S8707: the local caller chooses a new destination; no output root is imposed.
+    args.output.mkdir(parents=True, exist_ok=False)  # NOSONAR
     pack = decision_pack()
     (args.output / "decisions.json").write_text(json.dumps(pack, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     (args.output / "decisions.md").write_text(briefing(pack), encoding="utf-8")

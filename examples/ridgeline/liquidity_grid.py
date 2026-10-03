@@ -32,7 +32,8 @@ def opening_buffer(config, floor=0.0):
 
 def liquidity_grid(floor=0.0, delays=range(6)):
     delays = tuple(delays)
-    if len(delays) != 6 or set(delays) != set(range(6)) or any(type(x) is not int for x in delays):
+    # Require built-in ints, excluding bool and int subclasses.
+    if len(delays) != 6 or set(delays) != set(range(6)) or any(type(x) is not int for x in delays):  # pylint: disable=unidiomatic-typecheck
         raise ValueError("The grid requires the six distinct delay values from 0 to 5.")
     config = pyfpa.load_cash13_config(HERE / "cash13.yaml")
     hires = next(scenario for scenario in pyfpa.load_cash13_scenarios(HERE / "scenarios.yaml")
@@ -81,7 +82,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True, help="new directory for the fabricated grid")
     args = parser.parse_args()
     pack = liquidity_grid(args.floor)
-    args.output.mkdir(parents=True, exist_ok=False)
+    # S8707: the local caller chooses a new destination; no output root is imposed.
+    args.output.mkdir(parents=True, exist_ok=False)  # NOSONAR
     (args.output / "liquidity.json").write_text(json.dumps(pack, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     (args.output / "liquidity.md").write_text(briefing(pack), encoding="utf-8")
     print("CASH CONSTRAINTS QUALIFIED")
