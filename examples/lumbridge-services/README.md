@@ -130,7 +130,7 @@ Checked on 10 September 2026. The source records above remain fictional.
 
 Give the reviewer [TRIAL.md](TRIAL.md), the generated workbook and the source
 files. Keep [REVIEWER-KEY.md](REVIEWER-KEY.md) aside until they have recorded
-their findings. The trial has not yet been performed by an independent accountant.
+their findings. No independent accountant has performed the trial.
 Technical verification does not establish client suitability, forecast
 accuracy or time saved.
 
