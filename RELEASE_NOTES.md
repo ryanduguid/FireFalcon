@@ -1,3 +1,23 @@
+# v0.2.0
+
+Breaking for code and configurations written against 0.1.2:
+
+- Requires Python 3.12 or later, with pandas 3.0.5, PyYAML 6.0.3 and openpyxl 3.1.5 as the dependency floors (#159). 0.1.2 remains the last release for Python 3.11.
+- The days-based working-capital model refuses a configuration that implies negative customer receipts, purchases or supplier payments, naming the month, the flow and the amount, and `model-export` writes no workbook for it. A DSO of 60 days with revenue tripling in a month used to report a smaller operating cash flow instead (#139). Use a collection profile or the replenishment basis below where the days model cannot follow the business.
+- Forecast configuration rejects NaN and infinity (#135), a receipt shift rejects non-finite amounts and keeps cash unchanged when its source and destination month match (#136), and seasonality that overflows its total or growth that overflows raises `ValueError` instead of erasing revenue or producing infinite cash (#137).
+- Removed public names nothing read: `GstAssumptions.agent_lodgment` (a YAML `agent_lodgment` key is now ignored), `XeroReport.gst_inclusive`, `XeroReport.unmapped_tracking` and the `connector-validate --timeout` flag (#134).
+
+Added:
+
+- `review_forecast` structural controls over a monthly forecast frame (#140), an opt-in income-year tax provision (#141), receivables collected by a stated profile (#142) with bad debts and later write-offs (#150), and an opt-in replenishment basis for inventory (#151).
+- `pyfpa.au.payroll_settlement` settles payroll costs on their own dates (#143), with due-date rules for PAYG withholding (#144), the super guarantee under Payday Super and the quarterly regime (#145) and monthly payroll tax lodgers (#146), and PAYG instalments for quarterly payers (#149).
+- Ridgeline cash decisions with a 12-cell receipt-delay and hiring grid (#166), and a Lumbridge close handoff that reconstructs the opening payable from its own fabricated bills, credits and settlements (#170).
+
+Fixed:
+
+- `model-export` refuses to write over its own configuration, including through links (#154); correction slugs cannot leave the corrections directory (#155); experiment saves no longer overwrite a competing save of the same name (#156); depreciation evidence refuses a non-boolean `synthetic_input` (#157); registry loaders report broken paths and non-mapping YAML instead of returning empty records (#158).
+- The Lumbridge briefing's figures are tied to their sources by tests (#138), the learning workflows keep Xero API data out until the developer terms are checked (#148), and `docs/ai-register-entry.md` gives supplier information for a firm's AI register (#153).
+
 # v0.1.2
 
 Breaking for scripts written against 0.1.1:
