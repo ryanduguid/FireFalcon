@@ -3,7 +3,7 @@ name = "au-fpa-pack"
 version = "0.2.0"
 description = "Australian FP&A pack on openfpa: 30 June years, Xero AU, GST/BAS. Upstream is Jeff Brines / Guiderail."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Guiderail" }]
@@ -13,8 +13,6 @@ classifiers = [
     "Intended Audience :: Financial and Insurance Industry",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Office/Business :: Financial :: Accounting",
 ]
@@ -67,7 +65,7 @@ include = ["pyfpa*"]
 "pyfpa.au" = ["data/*.yaml", "fixtures/*.json"]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py314"
 
 [tool.ruff.lint]
 # Pin the selection instead of inheriting it: pycodestyle errors, Pyflakes and
@@ -97,7 +95,7 @@ select = ["E4", "E7", "E9", "F", "I"]
 
 [tool.mypy]
 files = ["pyfpa", "tests"]
-python_version = "3.12"
+python_version = "3.14"
 strict = true
 # `tests/` carries no __init__.py, so name its modules from the repo root and
 # the `tests.*` override below can address them.

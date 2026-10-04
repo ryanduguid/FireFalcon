@@ -1,7 +1,7 @@
 ## Current quick start
 
 Clone the repository and install the locked development environment with
-[uv](https://docs.astral.sh/uv/), on Python 3.12 or newer:
+[uv](https://docs.astral.sh/uv/), on Python 3.14 or newer:
 
 ```bash
 git clone https://github.com/ryanduguid/au-fpa-pack

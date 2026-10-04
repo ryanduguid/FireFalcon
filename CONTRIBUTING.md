@@ -20,8 +20,8 @@ pytest -m network  # the live checks, which fetch RBA CSVs over the internet
 CI runs `ruff check .` and `mypy` before the test matrix, so a lint or typing
 failure stops the run early. `ruff check . --fix` applies the safe fixes.
 
-`mypy` checks against Python 3.12, the minimum in `requires-python`.
-Run lint and type checks in a Python 3.12 environment, as CI does.
+`mypy` checks against Python 3.14, the minimum in `requires-python`.
+Run lint and type checks in a Python 3.14 environment, as CI does.
 
 `pytest.ini` deselects the `network` marker by default, so a Reserve Bank outage or a
 published layout change cannot fail a branch that did not cause it. Run `pytest -m
@@ -33,7 +33,7 @@ The distribution is `au-fpa-pack`; the importable package is `pyfpa` (`import py
 Pandas 3 requires openpyxl 3.1.5 or newer. Versions before 3.1.3 can retain workbook file handles
 on Windows with Python 3.11.8 or newer, preventing verified exports from replacing
 their destination. See [openpyxl issue 2149 in its release notes](https://openpyxl.readthedocs.io/en/stable/changes.html).
-CI runs the minimum-dependency suite on Python 3.12, 3.13 and 3.14 on both Linux
+CI runs the minimum-dependency suite on Python 3.14 on both Linux
 and Windows.
 
 ## The workflow
@@ -55,7 +55,7 @@ check name and Windows adds `public-fixtures (Windows)`; branch protection requi
 
 1. Fork, branch, and make your change.
 2. **Add tests for new behaviour.** The project is test-first, and CI runs the suite on
-   Python 3.12, 3.13, and 3.14. A green suite is required to merge, as are clean
+   Python 3.14. A green suite is required to merge, as are clean
    `ruff check .` and `mypy` runs.
 3. Open a PR describing what you changed and why. For anything non-trivial, describe the
    approach in a draft PR before you build: Issues are switched off in this repository, and

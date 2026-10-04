@@ -14,7 +14,7 @@ eventually arrives. That recovery cannot fund payments due earlier.
 
 ## Run the example
 
-From the repository root, use Python 3.12 and the locked development environment:
+From the repository root, use Python 3.14 and the locked development environment:
 
 ```bash
 uv sync --locked --extra dev
