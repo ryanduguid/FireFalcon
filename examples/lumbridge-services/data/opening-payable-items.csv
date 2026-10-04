@@ -1,0 +1,5 @@
+Tenant,AccountID,Currency,SupplierID,BillID,ItemID,Kind,Date,Amount,Reference
+Lumbridge Services,BS-800,AUD,Fabricated Materials A,LB-M01,LB-B01,bill,2026-09-18,8800.00,Fabricated materials bill A
+Lumbridge Services,BS-800,AUD,Fabricated Materials B,LB-M02,LB-B02,bill,2026-09-21,7700.00,Fabricated materials bill B
+Lumbridge Services,BS-800,AUD,Fabricated Materials A,LB-M01,LB-C01,credit,2026-09-24,1100.00,Fabricated returned materials credit
+Lumbridge Services,BS-800,AUD,Fabricated Materials A,LB-M01,LB-P01,settlement,2026-09-28,2200.00,Fabricated payment before opening
