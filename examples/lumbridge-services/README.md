@@ -47,6 +47,7 @@ net transactions on the same day and do not establish intraday liquidity.
 | --- | --- | --- |
 | [xero_pl.csv](data/xero_pl.csv) | September 2026 fabricated GST-exclusive P&L | Revenue, materials, overhead and prior payroll costs |
 | [xero_bs.csv](data/xero_bs.csv) | Fabricated balances at 30 September 2026 | Opening cash, gross receivables, payables, tax and loan balances |
+| [opening-payable-items.csv](data/opening-payable-items.csv) | Separately specified gross bills, credits and prior settlements | Independently reconstruct the opening payable for the close handoff |
 | [payroll.csv](data/payroll.csv) | Three NSW employee roles | Reconcile gross wages, super and leave expense through the existing payroll kernel |
 | [invoices.csv](data/invoices.csv) | September opening debtors and forecast October to December invoices | Revenue by service month and dated GST-inclusive receipts |
 | [payments.csv](data/payments.csv) | Explicit future bank payments | Supplier, payroll, super, tax and loan cash dates |
@@ -126,11 +127,11 @@ Checked on 10 September 2026. The source records above remain fictional.
   28 October is the standard September-quarter date. The example uses
   explicit payment dates and does not infer agent concessions or holiday extensions.
 
-## Independent trial
+## Archived external trial
 
-Give the reviewer [TRIAL.md](TRIAL.md), the generated workbook and the source
-files. Keep [REVIEWER-KEY.md](REVIEWER-KEY.md) aside until they have recorded
-their findings. No independent accountant has performed the trial.
+The external accountant trial route is retired as at 1 October 2026. The
+[archived protocol](TRIAL.md) and [answer key](REVIEWER-KEY.md) preserve its
+method. No independent accountant trial is recorded.
 Technical verification does not establish client suitability, forecast
 accuracy or time saved.
 

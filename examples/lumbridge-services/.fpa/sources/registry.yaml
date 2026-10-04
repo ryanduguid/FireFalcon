@@ -41,6 +41,18 @@ sources:
   refreshed_at: ''
   notes: Synthetic case. No live system or client data. Locations are relative to
     the example.
+- source_id: opening-payable-items
+  kind: local_file
+  location: data/opening-payable-items.csv
+  entity: Lumbridge Services
+  currency: AUD
+  periods:
+  - 2026-09
+  extraction_method: Separately fabricated gross bills, credits and prior settlements.
+  refreshed_at: ''
+  notes: Supports the close handoff. Not derived from the balance sheet or future
+    payment assumption. No supplier documents are authenticated; completeness is
+    not established.
 - source_id: payroll
   kind: local_file
   location: data/payroll.csv

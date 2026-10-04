@@ -1,6 +1,10 @@
-# Lumbridge trial: leave Tutorial Island without help
+# Archived Lumbridge trial protocol
 
-This is an independent usability and accounting review of a synthetic case.
+The external trial route is retired as at 1 October 2026. This archived protocol
+preserves the proposed usability and accounting review method for a synthetic
+case. No independent accountant trial is recorded and none is being sought.
+The instructions below describe the former protocol, not a current invitation.
+
 No OSRS knowledge is needed. Varrock and Falador are the 2 service lines;
 the Grand Exchange reference means customer collections.
 
@@ -37,9 +41,8 @@ Keep these three categories apart when reporting or citing a result.
 2. **Maintainer trial.** The author opening the workbook and exercising it. Recorded
    as such, and not independent.
 3. **Independent review.** This guide, completed by an accountant with no part in
-   building the case. **None has been completed.** Until a named reviewer returns a
-   result under the consent terms below, the independent-review status stays pending
-   and no page, README or listing may claim otherwise.
+   building the case. **None is recorded.** The trial route is retired. Author-run
+   checks and maintainer observations must not be described as an independent review.
 
 ## First run
 
@@ -140,5 +143,5 @@ the profit/cash difference and identifies the liabilities and owner action
 without unrecorded help. Report elapsed time as an observation; it is not
 evidence of time saved against another workflow.
 
-Return the completed table and any issues to Ryan through a channel he
-chooses. Nothing in this guide submits a report automatically.
+No trial is scheduled or solicited by this archived protocol. Nothing in this
+guide submits a report automatically.
