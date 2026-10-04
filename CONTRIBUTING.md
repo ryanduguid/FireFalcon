@@ -38,8 +38,8 @@ and Windows.
 
 ## The workflow
 
-`joined-fixtures.yml` runs the fabricated close-to-forecast, quarter and
-job-to-cash examples on this repository's pull requests, pushes to `main` and manual
+`joined-fixtures.yml` runs the fabricated close-to-forecast, quarter,
+job-to-cash and grant-to-cash examples on this repository's pull requests, pushes to `main` and manual
 runs. Linux and Windows jobs use the proposed FPA checkout with full commit pins for
 Accounting Review Pipeline and Australian Accounting. Update those pins deliberately
 when adopting compatible changes. Each owner runs in a separate process and fresh

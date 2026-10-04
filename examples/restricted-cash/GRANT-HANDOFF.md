@@ -1,6 +1,6 @@
 # Grant workpapers to restricted cash
 
-Build the fabricated workpaper with the grant-acquittal-workpapers CLI, then run this consumer from the au-fpa-pack checkout:
+Build the fabricated workpaper with the grant workpapers CLI, `apps/grant-acquittal-workpapers/grant_workpaper.py` in Accounting Review Pipeline, then run this consumer from the au-fpa-pack checkout:
 
 ```powershell
 uv run --locked python examples/restricted-cash/grant_cash.py --workpaper path/to/workpaper.json --workpaper-sha256 EXPECTED_SHA256 --plan examples/restricted-cash/grant-plan.json
@@ -18,4 +18,4 @@ The additional `liquidity` result reports dated bank cash, available cash, each 
 
 Balances use the opening position and each event day's closing position. Same-day receipts and payments are netted; intraday funding order is not assessed. Negative grant allocations never increase available unrestricted cash. Unresolved commitments remain excluded and visible. If general receipts or spending are non-zero, supply `general_cash_plan` rows with unique `id`, canonical `date`, `kind` (`receipt` or `payment`), positive decimal-string `amount` and `evidence`. Those rows must sum exactly to the general receipt and spending inputs; the model does not invent payment dates.
 
-The copied `tests/fixtures/grant-workpaper.json` is the fabricated producer's deterministic output for its two-grant example, used to test the file contract without importing that repository. The portable integration run also checks the current producer directly.
+The copied `tests/fixtures/grant-workpaper.json` is the fabricated producer's deterministic output for its two-grant example, used to test the file contract without importing the producer. The joined fixtures and the portable integration run also check the current producer directly.
