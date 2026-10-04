@@ -23,7 +23,7 @@ privacy obligations.
 
 | Field | Entry |
 | --- | --- |
-| Name and version | au-fpa-pack 0.1.2 (import `pyfpa`, command `openfpa`), an Australian FP&A kernel and agent skills that build cash forecasts and management briefings from a company's own records |
+| Name and version | au-fpa-pack 0.2.0 (import `pyfpa`, command `openfpa`), an Australian FP&A kernel and agent skills that build cash forecasts and management briefings from a company's own records |
 | Source and updates | Extends [openfpa](https://github.com/JeffBrines/openfpa) by Guiderail; Ryan Duguid maintains the Australian additions. MIT licence, with no warranty or support agreement. Releases are on PyPI with [release notes](../RELEASE_NOTES.md), and an installed version changes only when the firm upgrades it. A Claude Code marketplace entry pointing at this repository installs the skills as the `openfpa` plugin, whose manifest carries its own version. |
 | Intended use cases | Gives an agent a deterministic kernel for Australian cash timing (30 June years, GST and BAS, payroll on-costs, Xero AU mapping) and a workflow for learning a business, running the month and scoring forecasts against actuals |
 | Known limitations and prohibited use | Forecasting aid, not tax advice or a funding decision. The generated files do not establish native Excel recalculation or forecast accuracy. An approval record is an acknowledgement a practitioner writes, not authentication and not proof that a client consented. |
