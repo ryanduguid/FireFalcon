@@ -112,7 +112,7 @@ jobs:
 
       - name: Audit locked dependencies
         if: matrix.python-version == '3.14'
-        run: uv audit --locked
+        run: uv audit --locked --no-config --python-version 3.14
 
   minimum-resolution:
     name: minimum-resolution (${{ matrix.os }}, ${{ matrix.python-version }})
@@ -149,7 +149,7 @@ jobs:
         run: uv sync --upgrade --resolution lowest-direct --extra dev
 
       - name: Audit minimum resolution
-        run: uv audit --locked --resolution lowest-direct
+        run: uv audit --locked --no-config --python-version 3.14 --resolution lowest-direct
 
       - name: Run tests at declared minimums
         run: uv run --locked --resolution lowest-direct --extra dev pytest -q
