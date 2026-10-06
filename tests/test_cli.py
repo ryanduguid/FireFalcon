@@ -730,3 +730,34 @@ def test_onboarding_render_writes_profile_and_proposal(tmp_path, run_cli):
     assert payload["proposal_path"].endswith("initial-model-architecture.md")
     assert (tmp_path / ".fpa" / "business-profile.md").exists()
     assert (tmp_path / ".fpa" / "decisions" / "initial-model-architecture.md").exists()
+
+
+def test_onboarding_render_refuses_linked_decisions_before_profile_changes(tmp_path, run_cli):
+    from pyfpa.memory.intake import (
+        load_intake,
+        next_intake_questions,
+        record_intake_fact,
+        save_intake,
+    )
+
+    assert run_cli("init", str(tmp_path), "--business-name", "Acme").returncode == 0
+    memory = tmp_path / ".fpa"
+    intake_path = memory / "intake.md"
+    intake = load_intake(intake_path)
+    while questions := next_intake_questions(intake):
+        for question in questions:
+            intake = record_intake_fact(intake, key=question.key, answer="Known", source_type="user")
+    save_intake(intake, intake_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (memory / "decisions").rmdir()
+    (memory / "decisions").symlink_to(outside, target_is_directory=True)
+    profile = memory / "business-profile.md"
+    before = profile.read_bytes()
+
+    result = run_cli("onboarding-render", str(tmp_path), "--proposal-summary", "Review", "--overwrite")
+
+    assert result.returncode == 1, result.stdout
+    assert output_json(result)["error"]["type"] == "onboarding_render_failed"
+    assert profile.read_bytes() == before
+    assert not list(outside.iterdir())
