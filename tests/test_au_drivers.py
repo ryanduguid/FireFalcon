@@ -173,7 +173,7 @@ def test_fetch_rba_parses_the_committed_f1_sample(monkeypatch):
     assert series.series_id == "FIRMMCRTD"
     assert series.units == "Per cent"
     assert series.source_url.endswith("f1-data.csv")
-    # The last dated row in a month wins; blank cells are skipped, never zeroed.
+    # The latest dated observation wins; blank cells are skipped, never zeroed.
     assert series.data["2026-02"] == 3.85  # 27-Feb rise, not the 02-Feb 3.60
     assert series.data["2026-08"] == 4.35  # 27-Aug, since 28-Aug is blank
     assert "2026-04" not in series.data
@@ -188,6 +188,54 @@ def test_fetch_rba_selects_the_named_column_of_a_shared_table(monkeypatch):
     assert (twi.series_id, twi.units) == ("FXRTWI", "Index")
     assert aud_usd.data["2026-08"] == 0.7196
     assert twi.data["2026-08"] == 66.40
+
+
+@pytest.mark.parametrize("name", list(drivers.RBA_SERIES))
+@pytest.mark.parametrize("order", ["reversed", "interleaved"])
+def test_fetch_rba_is_independent_of_observation_order(name, order, monkeypatch, tmp_path):
+    monkeypatch.setattr(drivers, "_fetch", _sample)
+    expected = fetch_rba_series(name)
+    table, _ = drivers.RBA_SERIES[name]
+    lines = _sample(f"{drivers.RBA_BASE}/{table}").decode("utf-8-sig").splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("Series ID,")) + 1
+    rows = lines[start:]
+    rows = rows[::-1] if order == "reversed" else rows[1::2] + rows[::2]
+    reordered = ("\n".join(lines[:start] + rows) + "\n").encode()
+    monkeypatch.setattr(drivers, "_fetch", lambda url: reordered)
+
+    actual = fetch_rba_series(name)
+
+    assert list(actual.data.items()) == list(expected.data.items())
+    reloaded = load_snapshot(save_snapshot(actual, tmp_path)).to_series()
+    assert reloaded.index.is_monotonic_increasing
+    assert reloaded.iloc[-1] == expected.to_series().iloc[-1]
+
+
+@pytest.mark.parametrize("name", list(drivers.RBA_SERIES))
+@pytest.mark.parametrize("duplicate", ["same", "formatted", "blank", "conflicting"])
+def test_fetch_rba_duplicate_date_policy(name, duplicate, monkeypatch):
+    monkeypatch.setattr(drivers, "_fetch", _sample)
+    expected = fetch_rba_series(name)
+    table, series_id = drivers.RBA_SERIES[name]
+    lines = _sample(f"{drivers.RBA_BASE}/{table}").decode("utf-8-sig").splitlines()
+    header = next(i for i, line in enumerate(lines) if line.startswith("Series ID,"))
+    col = lines[header].split(",").index(series_id)
+    # The first date does not win its month, but a conflict must still be reported.
+    row = lines[header + 1].split(",")
+    if duplicate == "formatted":
+        row[col] = f"{float(row[col]):.6f}"
+    elif duplicate == "blank":
+        row[col] = ""
+    elif duplicate == "conflicting":
+        row[col] = str(float(row[col]) + 1)
+    payload = ("\n".join(lines + [",".join(row)]) + "\n").encode()
+    monkeypatch.setattr(drivers, "_fetch", lambda url: payload)
+
+    if duplicate == "conflicting":
+        with pytest.raises(ValueError, match=f"{series_id} on 2026-02-02"):
+            fetch_rba_series(name)
+    else:
+        assert list(fetch_rba_series(name).data.items()) == list(expected.data.items())
 
 
 def _run_snapshot(monkeypatch, capsys, tmp_path, *args) -> tuple[int, dict]:
