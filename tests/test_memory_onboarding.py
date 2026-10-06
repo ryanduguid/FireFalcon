@@ -1,6 +1,7 @@
 import os
 import stat
 import subprocess
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -189,8 +190,9 @@ def test_onboarding_rejects_links_before_changing_outputs(tmp_path, directory_na
     assert not list(memory.glob(".onboarding-*.tmp"))
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows directory junction")
 def test_onboarding_rejects_windows_junction_before_replacing_profile(tmp_path):
+    if sys.platform != "win32":
+        pytest.skip("Windows directory junction")
     memory = tmp_path / ".fpa"
     memory.mkdir()
     outside = tmp_path / "outside"
@@ -296,3 +298,149 @@ def test_replacement_preserves_ordinary_permission_bits(tmp_path):
     profile.chmod(0o640)
     write_onboarding_outputs(_ready_intake(), tmp_path, _proposal(), overwrite=True)
     assert stat.S_IMODE(profile.stat().st_mode) == 0o640
+
+
+def test_overwrite_still_requires_access_to_write_existing_output(tmp_path):
+    profile, _ = write_onboarding_outputs(_ready_intake(), tmp_path, _proposal())
+    before = profile.read_bytes()
+    profile.chmod(0o444)
+    try:
+        with pytest.raises(PermissionError):
+            write_onboarding_outputs(_ready_intake(), tmp_path, _proposal(), overwrite=True)
+        assert profile.read_bytes() == before
+    finally:
+        profile.chmod(0o600)
+
+
+def test_seed_populated_during_rendering_remains_protected(tmp_path, monkeypatch):
+    import pyfpa.memory.onboarding as onboarding
+
+    profile = tmp_path / "business-profile.md"
+    profile.write_text(render_business_profile(Intake(business_name="Acme")), encoding="utf-8")
+    original_render = onboarding.render_architecture_proposal
+
+    def render_and_populate(*args, **kwargs):
+        profile.write_bytes(b"populated during rendering")
+        return original_render(*args, **kwargs)
+
+    monkeypatch.setattr(onboarding, "render_architecture_proposal", render_and_populate)
+    with pytest.raises(FileExistsError):
+        write_onboarding_outputs(_ready_intake(), tmp_path, _proposal())
+    assert profile.read_bytes() == b"populated during rendering"
+    assert not (tmp_path / "decisions" / "initial-model-architecture.md").exists()
+
+
+def test_literal_tilde_path_checks_the_tree_used_for_writes(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    literal = tmp_path / "~"
+    literal.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    profile = outside / "business-profile.md"
+    profile.write_bytes(b"outside profile")
+    linked_memory = literal / "memory"
+    if sys.platform == "win32":
+        result = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(linked_memory), str(outside)],
+            capture_output=True, text=True, check=False, timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+    else:
+        linked_memory.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="symlinks or reparse points"):
+        write_onboarding_outputs(_ready_intake(), "~/memory", _proposal(), overwrite=True)
+
+    assert profile.read_bytes() == b"outside profile"
+    assert not (outside / "decisions").exists()
+    assert not (home / "memory").exists()
+
+
+@pytest.mark.parametrize("name", ["~", "~unknown", "memory"])
+def test_relative_memory_paths_keep_literal_and_return_path_semantics(tmp_path, monkeypatch, name):
+    monkeypatch.chdir(tmp_path)
+    memory = Path(name) / "memory"
+    profile, proposal = write_onboarding_outputs(_ready_intake(), memory, _proposal())
+    assert profile == memory / "business-profile.md"
+    assert proposal == memory / "decisions" / "initial-model-architecture.md"
+    assert profile.exists() and proposal.exists()
+
+
+@pytest.mark.parametrize("overwrite", [False, True])
+def test_non_utf8_profile_requires_explicit_overwrite(tmp_path, overwrite):
+    profile = tmp_path / "business-profile.md"
+    profile.write_bytes(b"\xff")
+    if overwrite:
+        write_onboarding_outputs(_ready_intake(), tmp_path, _proposal(), overwrite=True)
+        assert "Known business_model" in profile.read_text(encoding="utf-8")
+    else:
+        with pytest.raises(FileExistsError):
+            write_onboarding_outputs(_ready_intake(), tmp_path, _proposal())
+        assert profile.read_bytes() == b"\xff"
+        assert not (tmp_path / "decisions" / "initial-model-architecture.md").exists()
+
+
+@pytest.mark.parametrize("overwrite", [False, True])
+def test_directory_profile_is_rejected_as_non_regular(tmp_path, overwrite):
+    (tmp_path / "business-profile.md").mkdir()
+    with pytest.raises(ValueError, match="not a regular file"):
+        write_onboarding_outputs(_ready_intake(), tmp_path, _proposal(), overwrite=overwrite)
+    assert not (tmp_path / "decisions" / "initial-model-architecture.md").exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX FIFO and permission bits")
+@pytest.mark.parametrize("overwrite", [False, True])
+def test_fifo_profile_is_rejected_without_blocking(tmp_path, overwrite):
+    fifo = tmp_path / "business-profile.md"
+    os.mkfifo(fifo)
+    code = (
+        "import sys; from pathlib import Path; "
+        "from pyfpa.memory.intake import Intake; "
+        "from pyfpa.memory.onboarding import ArchitectureProposal, write_onboarding_outputs; "
+        "write_onboarding_outputs(Intake.model_validate_json(sys.argv[1]), Path(sys.argv[2]), "
+        "ArchitectureProposal(summary='fixture'), overwrite=sys.argv[3]=='True')"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code, _ready_intake().model_dump_json(), str(tmp_path), str(overwrite)],
+        capture_output=True, text=True, timeout=5, check=False,
+    )
+    assert result.returncode != 0
+    assert "not a regular file" in result.stderr
+    assert stat.S_ISFIFO(fifo.lstat().st_mode)
+    assert not (tmp_path / "decisions" / "initial-model-architecture.md").exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX special permission bits")
+def test_replacement_drops_special_permission_bits(tmp_path):
+    profile, _ = write_onboarding_outputs(_ready_intake(), tmp_path, _proposal())
+    profile.chmod(0o4750)
+    assert stat.S_IMODE(profile.stat().st_mode) == 0o4750
+    write_onboarding_outputs(_ready_intake(), tmp_path, _proposal(), overwrite=True)
+    assert stat.S_IMODE(profile.stat().st_mode) == 0o750
+
+
+@pytest.mark.parametrize("fail_stat", [False, True])
+def test_permission_probe_keeps_the_primary_error(tmp_path, monkeypatch, fail_stat):
+    profile, _ = write_onboarding_outputs(_ready_intake(), tmp_path, _proposal())
+    before = profile.read_bytes()
+    original_close = os.close
+
+    def close_then_fail(descriptor):
+        original_close(descriptor)
+        raise OSError("injected close error")
+
+    def fail_fstat(descriptor):
+        raise OSError("injected stat error")
+
+    monkeypatch.setattr(os, "close", close_then_fail)
+    if fail_stat:
+        monkeypatch.setattr(os, "fstat", fail_fstat)
+    with pytest.raises(OSError, match="injected stat error" if fail_stat else "injected close error"):
+        write_onboarding_outputs(_ready_intake(), tmp_path, _proposal(), overwrite=True)
+    assert profile.read_bytes() == before
+    assert not list(tmp_path.rglob(".onboarding-*.tmp"))
