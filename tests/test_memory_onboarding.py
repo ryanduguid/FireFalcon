@@ -1,3 +1,7 @@
+import os
+import stat
+import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -149,3 +153,146 @@ def test_a_profile_with_recorded_facts_is_still_protected(tmp_path):
         write_onboarding_outputs(_ready_intake(), workspace, _proposal())
     assert profile_path.read_bytes() == previous
     assert not (workspace / "decisions" / "initial-model-architecture.md").exists()
+
+
+@pytest.mark.parametrize("directory_name", [".fpa", "memory"])
+@pytest.mark.parametrize("linked", ["memory", "decisions", "profile", "proposal"])
+def test_onboarding_rejects_links_before_changing_outputs(tmp_path, directory_name, linked):
+    memory = tmp_path / directory_name
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    if linked == "memory":
+        memory.symlink_to(outside, target_is_directory=True)
+    else:
+        memory.mkdir()
+    profile = memory / "business-profile.md"
+    decisions = memory / "decisions"
+    proposal = decisions / "initial-model-architecture.md"
+    if linked == "decisions":
+        decisions.symlink_to(outside, target_is_directory=True)
+    else:
+        decisions.mkdir()
+    if linked in {"profile", "proposal"}:
+        target = outside / "sentinel.md"
+        target.write_bytes(b"outside sentinel")
+        (profile if linked == "profile" else proposal).symlink_to(target)
+    profile.write_bytes(b"profile sentinel" if linked != "profile" else b"outside sentinel")
+    proposal.write_bytes(b"proposal sentinel" if linked != "proposal" else b"outside sentinel")
+    before = (profile.read_bytes(), proposal.read_bytes())
+    outside_before = {path.name: path.read_bytes() for path in outside.iterdir() if path.is_file()}
+
+    with pytest.raises(ValueError, match="symlinks or reparse points"):
+        write_onboarding_outputs(_ready_intake(), memory, _proposal(), overwrite=True)
+
+    assert (profile.read_bytes(), proposal.read_bytes()) == before
+    assert {path.name: path.read_bytes() for path in outside.iterdir() if path.is_file()} == outside_before
+    assert not list(memory.glob(".onboarding-*.tmp"))
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows directory junction")
+def test_onboarding_rejects_windows_junction_before_replacing_profile(tmp_path):
+    memory = tmp_path / ".fpa"
+    memory.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    profile = memory / "business-profile.md"
+    profile.write_bytes(b"profile sentinel")
+    result = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(memory / "decisions"), str(outside)],
+        capture_output=True, text=True, check=False, timeout=10,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    with pytest.raises(ValueError, match="symlinks or reparse points"):
+        write_onboarding_outputs(_ready_intake(), memory, _proposal(), overwrite=True)
+
+    assert profile.read_bytes() == b"profile sentinel"
+    assert not list(outside.iterdir())
+
+
+def _fail_after_partial_write(monkeypatch, destination):
+    original_open = Path.open
+    original_fdopen = os.fdopen
+
+    class PartialWriter:
+        def __init__(self, output):
+            self.output = output
+
+        def write(self, text):
+            self.output.write(text[:20])
+            raise OSError("injected partial write")
+
+    @contextmanager
+    def broken_open(path, mode="r", *args, **kwargs):
+        with original_open(path, mode, *args, **kwargs) as output:
+            yield PartialWriter(output) if path == destination and mode in {"w", "x"} else output
+
+    @contextmanager
+    def broken_fdopen(*args, **kwargs):
+        with original_fdopen(*args, **kwargs) as output:
+            yield PartialWriter(output)
+
+    monkeypatch.setattr(Path, "open", broken_open)
+    monkeypatch.setattr(os, "fdopen", broken_fdopen)
+
+
+@pytest.mark.parametrize("seed", [False, True])
+def test_failed_replacement_keeps_existing_profile_and_removes_temporary(tmp_path, monkeypatch, seed):
+    profile = tmp_path / "business-profile.md"
+    before = render_business_profile(Intake(business_name="Acme")).encode() if seed else b"previous profile"
+    profile.write_bytes(before)
+    _fail_after_partial_write(monkeypatch, profile)
+
+    with pytest.raises(OSError, match="injected partial write"):
+        write_onboarding_outputs(_ready_intake(), tmp_path, _proposal(), overwrite=not seed)
+
+    assert profile.read_bytes() == before
+    assert not (tmp_path / "decisions" / "initial-model-architecture.md").exists()
+    assert not list(tmp_path.glob(".onboarding-*.tmp"))
+
+
+@pytest.mark.parametrize("failed_name", ["business-profile.md", "initial-model-architecture.md"])
+def test_failed_publication_keeps_previous_destination(tmp_path, monkeypatch, failed_name):
+    profile, proposal = write_onboarding_outputs(_ready_intake(), tmp_path, _proposal())
+    profile.write_bytes(b"old profile")
+    proposal.write_bytes(b"old proposal")
+    failed = profile if failed_name == profile.name else proposal
+    before = failed.read_bytes()
+    replace = os.replace
+
+    def fail_publication(source, destination):
+        if destination == failed:
+            raise OSError("injected replacement failure")
+        return replace(source, destination)
+
+    monkeypatch.setattr(os, "replace", fail_publication)
+    with pytest.raises(OSError, match="injected replacement failure"):
+        write_onboarding_outputs(_ready_intake(), tmp_path, _proposal(), overwrite=True)
+
+    assert failed.read_bytes() == before
+    assert not list(tmp_path.rglob(".onboarding-*.tmp"))
+
+
+def test_no_overwrite_preserves_a_destination_created_after_preflight(tmp_path, monkeypatch):
+    proposal = tmp_path / "decisions" / "initial-model-architecture.md"
+    original_open = Path.open
+
+    def race_open(path, mode="r", *args, **kwargs):
+        if path == proposal and mode == "x":
+            with original_open(path, "x", encoding="utf-8") as competing:
+                competing.write("raced proposal")
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", race_open)
+    with pytest.raises(FileExistsError):
+        write_onboarding_outputs(_ready_intake(), tmp_path, _proposal())
+    assert proposal.read_text() == "raced proposal"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits")
+def test_replacement_preserves_ordinary_permission_bits(tmp_path):
+    profile, _ = write_onboarding_outputs(_ready_intake(), tmp_path, _proposal())
+    profile.chmod(0o640)
+    write_onboarding_outputs(_ready_intake(), tmp_path, _proposal(), overwrite=True)
+    assert stat.S_IMODE(profile.stat().st_mode) == 0o640
