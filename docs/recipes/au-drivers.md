@@ -17,6 +17,10 @@ publisher revises a series.
 | Retail trade (historical) | ABS Indicator API | `retail_trade` | `RT_H` | M, ceased |
 | Labour force | ABS Indicator API | `labour_force` | `LF_H` | M |
 
+Each RBA month uses the latest valid dated observation, independent of CSV row
+order, and months are returned chronologically. Identical observations for the
+same date are accepted; conflicting values for that date raise `ValueError`.
+
 Indicator API dataflow ids carry the `_H` suffix; the unsuffixed `CPI`, `WPI`,
 `RT` and `LF` belong to the separate Data API. `CPI_H` became monthly in
 November 2025, when `CPI_M` and `CPI_M_H` ceased, and quarterly CPI returned as
