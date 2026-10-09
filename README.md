@@ -5,6 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/au-fpa-pack.svg?color=5C2D91&labelColor=04001F)](https://pypi.org/project/au-fpa-pack/)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-5C2D91.svg?labelColor=04001F)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.12%2B-5C2D91.svg?labelColor=04001F)](https://www.python.org/)
+[![Codacy code quality](https://app.codacy.com/project/badge/Grade/04c98b58f66e4339b598720a05aa6bc7?branch=main)](https://app.codacy.com/gh/ryanduguid/au-fpa-pack/dashboard)
 
 An Australian extension of [openfpa](https://github.com/JeffBrines/openfpa), by
 Guiderail: 30 June financial years, Xero AU account mapping, GST and BAS cash timing
