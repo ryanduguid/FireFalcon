@@ -39,10 +39,10 @@ dev = [
     # The Payday Super business-day calendar the super guarantee due-date tests
     # run against; the package itself takes any calendar with the same methods.
     "payday-super-checker>=0.1.8",
-    "coverage==7.16.1",
+    "coverage==7.16.2",
     "diff-cover==10.6.0",
-    "ruff==0.16.9",
-    "mypy==2.3.1",
+    "ruff==0.16.10",
+    "mypy==2.4.0",
     "types-PyYAML==6.0.12.20260906",
 ]
 
