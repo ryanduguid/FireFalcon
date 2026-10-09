@@ -62,7 +62,8 @@ def test_snapshot_serialisation_failure_preserves_destination(tmp_path, overwrit
         save_snapshot(invalid, path, overwrite=overwrite)
 
     if destination_exists:
-        assert path.read_bytes() == original_bytes
-        assert load_snapshot(path) == original
+        # These pytest outcome assertions are not production input validation.
+        assert path.read_bytes() == original_bytes  # nosec B101
+        assert load_snapshot(path) == original  # nosec B101
     else:
-        assert not path.exists()
+        assert not path.exists()  # nosec B101: pytest outcome assertion
