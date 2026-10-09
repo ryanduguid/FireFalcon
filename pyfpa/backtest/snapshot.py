@@ -42,8 +42,10 @@ def snapshot_forecast(
 
 def save_snapshot(snapshot: Snapshot, path: str | Path, *, overwrite: bool = False) -> None:
     """Serialise a Snapshot to YAML at the given path."""
-    with Path(path).open("w" if overwrite else "x", encoding="utf-8") as output:
-        output.write(yaml.safe_dump(snapshot.model_dump(), sort_keys=False))
+    destination = Path(path)
+    text = yaml.safe_dump(snapshot.model_dump(), sort_keys=False)
+    with destination.open("w" if overwrite else "x", encoding="utf-8") as output:
+        output.write(text)
 
 
 def load_forecast_snapshots(workspace: Path) -> tuple[list[Snapshot], list[str]]:
