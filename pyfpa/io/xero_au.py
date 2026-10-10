@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import csv
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -39,6 +40,13 @@ _INCOME_CODES = range(200, 300)
 _REVENUE_TYPE_KEYWORDS = ("sales", "revenue", "interest income")
 
 
+@dataclass(frozen=True)
+class AccountIdentity:
+    code: str
+    name: str
+    tracking_options: tuple[str, ...]
+
+
 class XeroRow(BaseModel):
     code: str = ""
     account: str
@@ -48,6 +56,22 @@ class XeroRow(BaseModel):
 
 class XeroReport(BaseModel):
     rows: list[XeroRow] = Field(default_factory=list)
+
+    def account_identities(self) -> tuple[AccountIdentity, ...]:
+        """Keep account codes for re-import review; refuse missing or ambiguous codes."""
+        names: dict[str, str] = {}
+        tracking: dict[str, set[str]] = {}
+        for row in self.rows:
+            if not row.code.strip() or row.code != row.code.strip() or not row.account.strip():
+                raise ValueError("re-import comparison requires an account code and name")
+            if row.code in names and names[row.code] != row.account:
+                raise ValueError(f"ambiguous account name for code: {row.code}")
+            names[row.code] = row.account
+            tracking.setdefault(row.code, set()).add(row.tracking_option)
+        return tuple(
+            AccountIdentity(code, names[code], tuple(sorted(tracking[code])))
+            for code in sorted(names)
+        )
 
     def by_account(self) -> dict[str, float]:
         """{account: amount} summed across codes and tracking options."""

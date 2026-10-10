@@ -184,6 +184,37 @@ python3 -m pyfpa.cli reconcile-source <company-root> --source-id xero-au \
   payroll tax lines each reconcile to the model's gross_wages,
   super_guarantee and payroll_tax columns for the same month.
 
+## Compare a re-import
+
+Use account codes as mapping keys when checking a replacement export. The
+identity view preserves leading zeros, repeated display names and tracking
+options. Missing codes or conflicting names for one code require review.
+
+```python
+from dataclasses import asdict
+from pyfpa.io.xero_au import read_xero_report
+from pyfpa.memory.reimport import compare_reimport
+
+comparison = compare_reimport(
+    read_xero_report("before.csv").account_identities(),
+    read_xero_report("after.csv").account_identities(),
+    previous_source=previous_source_record,
+    current_source=current_source_record,
+    mappings=current_mapping_registry,
+    previous_mappings=previous_mapping_registry,
+)
+print(asdict(comparison))
+```
+
+Supply records for the same source, entity and currency. The result lists added,
+missing and renamed codes, tracking changes, mapping changes, current unmapped
+codes, deliberate ignores and source metadata changes. Omit `previous_mappings`
+to check both exports against the current registry. Mapping changes cover codes
+present in either export. The function compares
+supplied objects and writes nothing. Review removed codes against the export's
+scope: an omitted zero balance does not establish that an account was deleted.
+Amounts and GST basis still need the existing reconciliation checks.
+
 ## Connector
 
 Only when recurring access is worth it. The connector's pulls are a source of

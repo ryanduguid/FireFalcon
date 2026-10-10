@@ -136,17 +136,27 @@ def fetch_rba_series(name: str) -> DriverSeries:
     if not units_row.empty:
         units = str(frame.loc[units_row[0], col])
 
-    data: dict[str, float] = {}
+    observations: dict[date, float] = {}
     for i in range(header_row[0] + 1, len(frame)):
         raw_date = str(frame.iloc[i, 0]).strip()
         raw_val = str(frame.iloc[i, col]).strip()
         if not raw_date or raw_date == "nan" or raw_val in ("", "nan"):
             continue
         try:
-            period = pd.Period(pd.Timestamp(raw_date), freq="M")
-            data[str(period)] = float(raw_val)
+            source_date = pd.Timestamp(raw_date).date()
+            value = float(raw_val)
         except (ValueError, TypeError):
             continue
+
+        if source_date in observations and observations[source_date] != value:
+            raise ValueError(
+                f"conflicting observations for {series_id} on {source_date.isoformat()}"
+            )
+        observations[source_date] = value
+
+    data: dict[str, float] = {}
+    for source_date in sorted(observations):
+        data[str(pd.Period(source_date, freq="M"))] = observations[source_date]
 
     return DriverSeries(
         name=name,

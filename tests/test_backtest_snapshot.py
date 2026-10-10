@@ -1,7 +1,13 @@
 import pytest
+import yaml
 
 from pyfpa.backtest.score import score_forecast
-from pyfpa.backtest.snapshot import load_snapshot, save_snapshot, snapshot_forecast
+from pyfpa.backtest.snapshot import (
+    Snapshot,
+    load_snapshot,
+    save_snapshot,
+    snapshot_forecast,
+)
 from pyfpa.config.schemas import EntityConfig
 from pyfpa.models.cashflow import cashflow_from_config
 
@@ -40,3 +46,24 @@ def test_snapshot_round_trip(tmp_path):
     assert back.score is not None
     assert back.score.fitness == pytest.approx(0.0)
     assert back.assumptions == snap.assumptions
+
+
+@pytest.mark.parametrize("overwrite,destination_exists", [(False, False), (True, False), (True, True)])
+def test_snapshot_serialisation_failure_preserves_destination(tmp_path, overwrite, destination_exists):
+    path = tmp_path / "forecast.yaml"
+    original = Snapshot(label="Original", created="2026-10-09", assumptions={}, predicted={})
+    if destination_exists:
+        save_snapshot(original, path)
+        original_bytes = path.read_bytes()
+    invalid = Snapshot(label="Invalid", created="2026-10-09",
+                       assumptions={"unsupported": object()}, predicted={})
+
+    with pytest.raises(yaml.representer.RepresenterError):
+        save_snapshot(invalid, path, overwrite=overwrite)
+
+    if destination_exists:
+        # These pytest outcome assertions are not production input validation.
+        assert path.read_bytes() == original_bytes  # nosec B101
+        assert load_snapshot(path) == original  # nosec B101
+    else:
+        assert not path.exists()  # nosec B101: pytest outcome assertion

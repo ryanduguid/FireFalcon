@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this work, cite it with this metadata and the release tag or commit you used."
+title: "au-fpa-pack"
+type: software
+authors:
+  - family-names: Duguid
+    given-names: Ryan
+abstract: "Australian FP&A tools for openfpa (Jeff Brines / Guiderail), with 30 June years, Xero AU and GST/BAS."
+repository-code: "https://github.com/ryanduguid/au-fpa-pack"
+url: "https://duguid.com.au/evaluate/"
+license: MIT
+keywords:
+  - ai-agents
+  - australia
+  - bas
+  - cash-flow
+  - claude-code
+  - excel
+  - financial-modelling
+  - forecasting
+  - fpa
+  - gst
+  - python
+  - xero

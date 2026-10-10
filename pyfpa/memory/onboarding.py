@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import os
+import stat
+import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 from pyfpa.memory.intake import Intake, intake_ready, is_fact_known
+from pyfpa.memory.workspace import Workspace
 
 
 class ArchitectureProposal(BaseModel):
@@ -119,6 +124,61 @@ def is_seeded_business_profile(text: str) -> bool:
     return text == render_business_profile(Intake(business_name=name))
 
 
+def _replace_onboarding_text(
+    path: Path, text: str, check: Callable[[Path], None],
+) -> None:
+    check(path)
+    if not stat.S_ISREG(path.lstat().st_mode):
+        raise ValueError(f"onboarding output is not a regular file: {path}")
+    descriptor = os.open(path, os.O_WRONLY)
+    try:
+        previous = os.fstat(descriptor)
+        if not stat.S_ISREG(previous.st_mode):
+            raise ValueError(f"onboarding output is not a regular file: {path}")
+    except BaseException:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+        raise
+    else:
+        os.close(descriptor)
+
+    check(path)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".onboarding-", suffix=".tmp", dir=path.parent,
+    )
+    temporary = Path(temporary_name)
+    try:
+        output = os.fdopen(descriptor, "w", encoding="utf-8")
+        descriptor = -1
+        with output as writer:
+            writer.write(text)
+        os.chmod(temporary, previous.st_mode & 0o777)
+        check(path)
+        os.replace(temporary, path)
+    finally:
+        if descriptor != -1:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _is_untouched_profile(path: Path, check: Callable[[Path], None]) -> bool:
+    check(path)
+    if not stat.S_ISREG(path.lstat().st_mode):
+        raise ValueError(f"onboarding output is not a regular file: {path}")
+    try:
+        return is_seeded_business_profile(path.read_text(encoding="utf-8"))
+    except UnicodeDecodeError:
+        return False
+
+
 def write_onboarding_outputs(
     intake: Intake,
     workspace: str | Path,
@@ -131,18 +191,31 @@ def write_onboarding_outputs(
     `openfpa init` seeds an empty `business-profile.md`, so the first render
     replaces that untouched seed. A profile carrying any recorded fact, and an
     existing architecture decision, still need an explicit `overwrite`.
+
+    Permitted replacements preserve prior bytes on handled write or rename
+    failures and keep ordinary mode bits. File identity and other metadata can
+    change. The two outputs are published separately.
     """
     if not intake_ready(intake):
         raise ValueError("intake is not ready for architecture proposal")
     workspace = Path(workspace)
-    workspace.mkdir(parents=True, exist_ok=True)
     decisions = workspace / "decisions"
-    decisions.mkdir(exist_ok=True)
     profile_path = workspace / "business-profile.md"
     proposal_path = decisions / "initial-model-architecture.md"
-    replace_seed = profile_path.exists() and is_seeded_business_profile(
-        profile_path.read_text(encoding="utf-8")
-    )
+    checked_workspace = workspace.absolute()
+    boundary = Workspace.open(checked_workspace.parent)
+    checked_memory = boundary.root / checked_workspace.name
+
+    def check(path: Path) -> None:
+        boundary.assert_safe_existing_chain(checked_memory / path.relative_to(workspace))
+
+    check(profile_path)
+    check(proposal_path)
+    workspace.mkdir(parents=True, exist_ok=True)
+    check(proposal_path)
+    decisions.mkdir(exist_ok=True)
+    check(profile_path)
+    replace_seed = not overwrite and profile_path.exists() and _is_untouched_profile(profile_path, check)
     if not overwrite:
         if proposal_path.exists():
             raise FileExistsError(f"onboarding output already exists: {proposal_path}")
@@ -152,7 +225,20 @@ def write_onboarding_outputs(
         (profile_path, render_business_profile(intake)),
         (proposal_path, render_architecture_proposal(intake, proposal)),
     ):
-        mode = "w" if overwrite or (path is profile_path and replace_seed) else "x"
-        with path.open(mode, encoding="utf-8") as output:
-            output.write(text)
+        check(path)
+        replace = overwrite or (path is profile_path and replace_seed)
+        if replace and path.exists():
+            if not overwrite and not _is_untouched_profile(path, check):
+                raise FileExistsError(f"onboarding output already exists: {path}")
+            _replace_onboarding_text(path, text, check)
+            continue
+        try:
+            output = path.open("x", encoding="utf-8")
+        except FileExistsError:
+            if not overwrite:
+                raise
+            _replace_onboarding_text(path, text, check)
+        else:
+            with output:
+                output.write(text)
     return profile_path, proposal_path
