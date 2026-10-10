@@ -55,7 +55,7 @@ check name and Windows adds `public-fixtures (Windows)`; branch protection requi
 
 1. Fork, branch, and make your change.
 2. **Add tests for new behaviour.** The project is test-first, and CI runs the suite on
-   Python 3.12, 3.13, and 3.14. A green suite is required to merge, as are clean
+   Python 3.12, 3.13, 3.14, and 3.15. A green suite is required to merge, as are clean
    `ruff check .` and `mypy` runs.
 3. Open a PR describing what you changed and why. For anything non-trivial, describe the
    approach in a draft PR before you build: Issues are switched off in this repository, and
