@@ -13,6 +13,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# CI follows Python 3.14 maintenance releases; local development pins the patch.
+env:
+  UV_PYTHON: "3.14"
+
 jobs:
   lint:
     timeout-minutes: 10
@@ -26,10 +30,10 @@ jobs:
           persist-credentials: false
 
       # Run lint and type checks on the minimum supported Python version.
-      - name: Set up Python 3.12
+      - name: Set up Python 3.14
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -57,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13", "3.14"]
+        python-version: ["3.14"]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -82,11 +86,11 @@ jobs:
         run: uv sync --locked --extra dev
 
       - name: Run tests
-        if: matrix.python-version != '3.13'
+        if: matrix.python-version != '3.14'
         run: uv run --locked --extra dev pytest -q
 
       - name: Run tests with branch coverage over the whole package
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.14'
         run: >-
           uv run --locked --extra dev coverage run --branch
           --source=pyfpa
@@ -97,18 +101,18 @@ jobs:
       # packages. The floor is the measured figure rounded down to the nearest
       # five, not an aspiration.
       - name: Require the package branch-coverage floor
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.14'
         run: uv run --locked --extra dev coverage report --fail-under=90
 
       - name: Require complete changed-line coverage in connector and workspace logic
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.14'
         run: |
           uv run --locked --extra dev coverage xml --include="pyfpa/memory/connectors.py,pyfpa/memory/workspace.py" -o coverage.xml
           uv run --locked --extra dev diff-cover coverage.xml --compare-branch=origin/main --branch-coverage --fail-under=100
 
       - name: Audit locked dependencies
-        if: matrix.python-version == '3.13'
-        run: uv audit --locked
+        if: matrix.python-version == '3.14'
+        run: uv audit --locked --no-config --python-version 3.14
 
   minimum-resolution:
     name: minimum-resolution (${{ matrix.os }}, ${{ matrix.python-version }})
@@ -121,7 +125,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.12", "3.13", "3.14"]
+        python-version: ["3.14"]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -145,7 +149,7 @@ jobs:
         run: uv sync --upgrade --resolution lowest-direct --extra dev
 
       - name: Audit minimum resolution
-        run: uv audit --locked --resolution lowest-direct
+        run: uv audit --locked --no-config --python-version 3.14 --resolution lowest-direct
 
       - name: Run tests at declared minimums
         run: uv run --locked --resolution lowest-direct --extra dev pytest -q
@@ -193,6 +197,9 @@ jobs:
     permissions:
       contents: read
     steps:
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

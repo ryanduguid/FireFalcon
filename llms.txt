@@ -3,7 +3,7 @@
 > Australian extension of the openfpa FP&A workbench: 30 June financial years, Xero AU mapping, GST and BAS cash timing, and payroll on-cost assumptions, with an agent-facing CLI, a Python kernel and 17 skills. Forecasting aids, not advice; examples use fabricated or public data.
 
 - Names: the distribution is `au-fpa-pack`, the import is `pyfpa` and the console script is `openfpa`. `.claude-plugin/plugin.json` declares the repository as the `openfpa` Claude Code plugin.
-- Install: `pip install au-fpa-pack` for the published release (see https://pypi.org/project/au-fpa-pack/), or `uv sync --locked --extra dev` from a clone. Requires Python 3.12 or later.
+- Install: `pip install au-fpa-pack` for the published release (see https://pypi.org/project/au-fpa-pack/), or `uv sync --locked --extra dev` from a clone. The development checkout requires Python 3.14 or later.
 - Upstream: [openfpa](https://github.com/JeffBrines/openfpa) by Jeff Brines and Guiderail. MIT licensed; both attributions are kept in LICENSE.
 - A competent human approves the assumptions and any funding decision. Rates and dates in docs/australian-pack.md are recorded modelling assumptions with sources, not a tax engine.
 
